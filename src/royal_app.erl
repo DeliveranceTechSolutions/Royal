@@ -11,10 +11,11 @@ start(_Type, _Args) ->
                {"/v1/users/register", user_handler, #{action => register}},
                {"/v1/users/login/options", user_handler, #{action => login_with_options}},
                {"/v1/users/login/complete", user_handler, #{action => login_complete}},
-               {"/v1/users/refresh", user_handler, #{action => refresh}},
+               {"/v1/users/refresh", user_handler, #{action => refresh_tokens}},
                {"/v1/users/devices", user_handler, #{action => devices}},
                {"/v1/users/devices/:device_id", user_handler, #{action => delete_devices}},
                {"/v1/users/suspend", user_handler, #{action => suspend}},
+               {"/v1/dashboard", user_handler, #{action => dashboard}},
                {"/v1/users/me", user_handler, #{action => me}}
         ]}
     ]),
@@ -30,8 +31,6 @@ start(_Type, _Args) ->
         ],
         #{env => #{dispatch => Dispatch}} 
     ),
-	royal_sup:start_link(),
-    user_auth:start_link().
-
+	royal_sup:start_link().
 stop(_State) ->
 	ok.

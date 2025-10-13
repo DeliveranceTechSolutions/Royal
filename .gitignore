@@ -20,4 +20,6 @@ rebar3.crashdump
 *~
 
 _rel
-
+deps
+.env
+.env.*
