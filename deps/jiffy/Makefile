@@ -1,0 +1,25 @@
+IGNORE_DEPS += edown eper eunit_formatters meck node_package rebar_lock_deps_plugin rebar_vsn_plugin reltool_util
+C_SRC_DIR = /path/do/not/exist
+C_SRC_TYPE = rebar
+DRV_CFLAGS = -fPIC
+export DRV_CFLAGS
+ERLANG_ARCH = 64
+export ERLANG_ARCH
+ERLC_OPTS = +debug_info
+
+
+
+rebar_dep: preprocess pre-deps deps pre-app app post-app
+
+preprocess::
+
+pre-deps::
+
+pre-app::
+
+post-app::
+
+pre-app::
+	@$(MAKE) --no-print-directory -f c_src/Makefile.erlang.mk
+
+include $(if $(ERLANG_MK_FILENAME),$(ERLANG_MK_FILENAME),erlang.mk)
