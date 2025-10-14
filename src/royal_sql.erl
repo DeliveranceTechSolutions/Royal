@@ -1,20 +1,24 @@
+%% royal_sql.erl
 -module(royal_sql).
+-export([squery/2]).
 
-% -include_lib("epgsql/include/epgsql.hrl").
+%% Pull epgsql types/records (e.g., #column{})
+-include_lib("epgsql/include/epgsql.hrl").
 
--type query() :: string() | iodata().
--type squery_row() :: tuple(). % tuple of binary().
+%% -------- Types (no functions with same names) --------
+-type query()      :: iodata().
+-type row()        :: tuple().
 
--type ok_reply(RowType) ::
-    {ok, ColumnsDescription :: [epgsql:column()], RowsValues :: [RowType]} |                            % select
-    {ok, Count :: non_neg_integer()} |                                                            % update/insert/delete
-    {ok, Count :: non_neg_integer(), ColumnsDescription :: [epgsql:column()], RowsValues :: [RowType]}. % update/insert/delete + returning
--type error_reply() :: {error, query_error()}.
--type reply(RowType) :: ok_reply() | error_reply().
+-type ok_reply() ::
+      {ok, non_neg_integer()}                                   %% write ops
+    | {ok, [#column{}], [row()]}.                               %% SELECT
 
--spec query_error() -> error_reply().
-query_error() -> 
-    error_reply().
--spec squery(connection(), query()) -> reply(squery_row()) | [reply(squery_row())].
-squery(Connection, SqlQuery) -> 
-    epgsql:execute(Connection, SqlQuery).
+-type error_reply() :: {error, term()}.
+-type reply()       :: ok_reply() | error_reply().
+
+-spec squery(epgsql:connection(), query()) -> reply().
+squery(Conn, Sql) ->
+    %% For simple SQL strings, squery/2 is fine. Use execute/2+ prepared
+    %% statements when you need parameters/binary formats.
+    epgsql:squery(Conn, Sql).
+
