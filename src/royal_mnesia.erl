@@ -1,40 +1,51 @@
 -module(royal_mnesia).
 
--export([bootstrap/0, ensure_tables/0]).
+-export([ensure_tables/0, bootstrap/0]).
 -include_lib("kernel/include/file.hrl").
 
--record(session, {id, user_id, data, expires_at}).
--record(flag,    {key, value}).
--record(kvcache, {key, val, ttl_until}).
+%-record(session, {id, user_id, data, expires_at}).
+%-record(flag,    {key, value}).
+%-record(kvcache, {key, val, ttl_until}).
+%
+%%% royal_mnesia.erl
 
 bootstrap() ->
-    application:ensure_all_started(mnesia),
-    Nodes = nodes() ++ [node()],
-    case mnesia:create_schema(Nodes) of
-        {error,{_,{already_exists,_}}} -> ok;
+    ensure_named_node(),
+    ok = ensure_schema(),
+    ok = start_mnesia(),
+    ok = ensure_tables().
+
+ensure_named_node() ->
+    case node() of
+        nonode@nohost -> exit({mnesia_requires_named_node, "start with --sname or --name"});
+        _ -> ok
+    end.
+
+ensure_schema() ->
+    case mnesia:create_schema([node()]) of
         ok -> ok;
-        {error, Reason} -> exit({schema_error, Reason})
-    end,
-    mnesia:start(),
-    ensure_tables(),
-    mnesia:wait_for_tables([session, flag, kvcache], 5000),
+        {error, {_, {already_exists, _}}} -> ok;
+        {aborted, {already_exists, _}} -> ok;
+        Other -> exit({schema_error, Other})
+    end.
+
+start_mnesia() ->
+    {ok, _} = application:ensure_all_started(mnesia),
     ok.
 
 ensure_tables() ->
-    create_if_missing(session,  [{attributes, record_info(fields, session)},
-                                 {disc_copies, [node()]}]),
-    create_if_missing(flag,     [{attributes, record_info(fields, flag)},
-                                 {ram_copies, [node()]}]),
-    create_if_missing(kvcache,  [{attributes, record_info(fields, kvcache)},
-                                 {ram_copies, [node()]}]),
-    create_if_missing(user,  [{attributes, record_info(fields, kvcache)},
-                                 {ram_copies, [node()]}]),
-    ok.
+    create(session,  [id, user_id, token, expires_at]),
+    create(user,     [username, id, firstname, lastname, email, password_hash]),
+    mnesia:wait_for_tables([session, user], 10000).
 
-create_if_missing(Tab, Props) ->
-    case mnesia:create_table(Tab, Props) of
-        {aborted,{already_exists,Tab}} -> ok;
+create(Tab, Attrs) ->
+    case mnesia:create_table(Tab, [
+            {attributes, Attrs},
+            {type, set},
+            {disc_copies, [node()]}
+        ]) of
         {atomic, ok} -> ok;
+        {aborted, {already_exists, Tab}} -> ok;
         Other -> exit({table_error, Tab, Other})
     end.
 

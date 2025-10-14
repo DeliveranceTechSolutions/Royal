@@ -5,12 +5,12 @@
 -export([stop/1]).
 
 start(_Type, _Args) ->
-    ok = royal_mnesia:bootstrap(),
     Dispatch = cowboy_router:compile([
         {'_', [
                {"/v1/users/register", user_handler, #{action => register}},
                {"/v1/users/login/options", user_handler, #{action => login_with_options}},
                {"/v1/users/login/complete", user_handler, #{action => login_complete}},
+               {"/v1/users/signup", user_handler, #{action => signup}},
                {"/v1/users/refresh", user_handler, #{action => refresh_tokens}},
                {"/v1/users/devices", user_handler, #{action => devices}},
                {"/v1/users/devices/:device_id", user_handler, #{action => delete_devices}},
@@ -19,6 +19,7 @@ start(_Type, _Args) ->
                {"/v1/users/me", user_handler, #{action => me}}
         ]}
     ]),
+
     PrivDir = code:priv_dir(royal),
     Cert    = filename:join([PrivDir, "tls", "royal-server.cert.pem"]),
     Key     = filename:join([PrivDir, "tls", "royal-server.key.pem"]),
@@ -31,6 +32,8 @@ start(_Type, _Args) ->
         ],
         #{env => #{dispatch => Dispatch}} 
     ),
+    royal_mnesia:bootstrap(),
 	royal_sup:start_link().
+
 stop(_State) ->
 	ok.
