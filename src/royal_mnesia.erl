@@ -35,7 +35,7 @@ start_mnesia() ->
 
 ensure_tables() ->
     create(session,  [id, user_id, token, expires_at]),
-    create(user,     [username, id, firstname, lastname, email, password_hash]),
+    create(user,     [username, id, firstname, lastname, email, password_hash, salt]),
     mnesia:wait_for_tables([session, user], 10000).
 
 create(Tab, Attrs) ->

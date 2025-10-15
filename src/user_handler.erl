@@ -17,6 +17,7 @@ read_json(Req0) ->
     end.
 
 reply_json(Req0, Status, Map) ->
+    erlang:display(Map),
     Body = jiffy:encode(Map),
     cowboy_req:reply(Status, ?JSON_CT, Body, Req0).
 
@@ -31,8 +32,8 @@ handle_login(Req0) ->
             case {maps:find(<<"username">>, M), maps:find(<<"password">>, M)} of
                 { {ok, U}, {ok, P} } ->
                     case user_auth:verify_credentials(U, P) of
-                        {ok, Rec = #user{}} ->
-                            reply_json(Req1, 200, user_public(Rec));
+                        {ok, Token} ->
+                            reply_json(Req1, 200, Token);
                         {error, not_found} ->
                             reply_json(Req1, 401, #{error => #{code => <<"invalid_credentials">>, message => <<"Invalid login">>}});
                         {error, bad_password} ->
@@ -60,8 +61,8 @@ handle_signup(Req0) ->
                            maps:get(<<"username">>, M),
                            maps:get(<<"password">>, M)
                     ) of
-                        {ok, Rec = #user{}} ->
-                            reply_json(Req1, 201, user_public(Rec));
+                        {ok, Token} ->
+                            reply_json(Req1, 201, Token);
                         {error, username_taken} ->
                             reply_json(Req1, 409, #{error => #{code => <<"username_taken">>, message => <<"Username already exists">>}});
                         {error, {mnesia, _}} ->

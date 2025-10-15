@@ -33,6 +33,8 @@ start(_Type, _Args) ->
         #{env => #{dispatch => Dispatch}} 
     ),
     royal_mnesia:bootstrap(),
+    application:start(crypto),
+    application:start(bcrypt),
 	royal_sup:start_link().
 
 stop(_State) ->
