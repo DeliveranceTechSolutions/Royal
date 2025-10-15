@@ -1,11 +1,10 @@
 -module(user_handler).
 -behaviour(cowboy_handler).
 
--export([init/2]).
+-export([init/2,user_public/1]).
 
 -define(JSON_CT, #{<<"content-type">> => <<"application/json">>}).
 
--record(user, {username, id, firstname, lastname, email, password_hash}).
 %% ===== helpers =====
 
 -spec read_json(cowboy_req:req()) -> {ok, map(), cowboy_req:req()} | {error, bad_json, cowboy_req:req()}.
@@ -21,31 +20,59 @@ reply_json(Req0, Status, Map) ->
     Body = jiffy:encode(Map),
     cowboy_req:reply(Status, ?JSON_CT, Body, Req0).
 
-user_public(#user{username = U, id = Id, firstname = F, lastname = L, email = E}) ->
-    #{username => U, id => Id, firstname => F, lastname => L, email => E}.
+user_public({user, U, Id, F, L, E, _Hash, _Salt}) ->
+    #{
+      <<"username">>  => U,
+      <<"id">>        => Id,
+      <<"firstname">> => F,
+      <<"lastname">>  => L,
+      <<"email">>     => E
+    }.
 
-%% ===== per-action handlers =====
+%user_public(#user{username = U, id = Id, firstname = F, lastname = L, email = E}) ->
+%    #{
+%      <<"username">>  => U,
+%      <<"id">>        => Id,
+%      <<"firstname">> => F,
+%      <<"lastname">>  => L,
+%      <<"email">>     => E
+%    }.
 
 handle_login(Req0) ->
     case read_json(Req0) of
         {ok, M, Req1} ->
             case {maps:find(<<"username">>, M), maps:find(<<"password">>, M)} of
-                { {ok, U}, {ok, P} } ->
+                {{ok, U}, {ok, P}} ->
+                    %% (Optional) sanity log:
                     case user_auth:verify_credentials(U, P) of
-                        {ok, Token} ->
-                            reply_json(Req1, 200, Token);
+                        {ok, Token, User} ->
+                            erlang:display({user_is_map, is_map(User)}),
+                            reply_json(Req1, 200, #{
+                                <<"access_token">> => Token,
+                                <<"user">>         => User
+                            });
                         {error, not_found} ->
-                            reply_json(Req1, 401, #{error => #{code => <<"invalid_credentials">>, message => <<"Invalid login">>}});
+                            reply_json(Req1, 401, #{
+                                <<"error">> => #{<<"code">> => <<"invalid_credentials">>, <<"message">> => <<"Invalid login">>}
+                            });
                         {error, bad_password} ->
-                            reply_json(Req1, 401, #{error => #{code => <<"invalid_credentials">>, message => <<"Invalid login">>}});
+                            reply_json(Req1, 401, #{
+                                <<"error">> => #{<<"code">> => <<"invalid_credentials">>, <<"message">> => <<"Invalid login">>}
+                            });
                         {error, _} ->
-                            reply_json(Req1, 500, #{error => #{code => <<"auth_error">>, message => <<"Authentication error">>}})
+                            reply_json(Req1, 500, #{
+                                <<"error">> => #{<<"code">> => <<"auth_error">>, <<"message">> => <<"Authentication error">>}
+                            })
                     end;
                 _ ->
-                    reply_json(Req1, 400, #{error => #{code => <<"missing_fields">>, message => <<"username and password required">>}})
+                    reply_json(Req1, 400, #{
+                        <<"error">> => #{<<"code">> => <<"missing_fields">>, <<"message">> => <<"username and password required">>}
+                    })
             end;
         {error, bad_json, Req1} ->
-            reply_json(Req1, 400, #{error => #{code => <<"bad_json">>, message => <<"Invalid JSON body">>}})
+            reply_json(Req1, 400, #{
+                <<"error">> => #{<<"code">> => <<"bad_json">>, <<"message">> => <<"Invalid JSON body">>}
+            })
     end.
 
 handle_signup(Req0) ->
@@ -54,27 +81,39 @@ handle_signup(Req0) ->
             Required = [<<"firstname">>, <<"lastname">>, <<"email">>, <<"username">>, <<"password">>],
             case [K || K <- Required, not maps:is_key(K, M)] of
                 [] ->
-                    case user_auth:signup(
-                           maps:get(<<"firstname">>, M),
-                           maps:get(<<"lastname">>, M),
-                           maps:get(<<"email">>, M),
-                           maps:get(<<"username">>, M),
-                           maps:get(<<"password">>, M)
-                    ) of
-                        {ok, Token} ->
-                            reply_json(Req1, 201, Token);
+                    F = maps:get(<<"firstname">>, M),
+                    L = maps:get(<<"lastname">>, M),
+                    E = maps:get(<<"email">>, M),
+                    U = maps:get(<<"username">>, M),
+                    P = maps:get(<<"password">>, M),
+                    case user_auth:signup(F, L, E, U, P) of
+                        {ok, Token, PublicUser} ->
+                            reply_json(Req1, 201, #{
+                                <<"access_token">> => Token,
+                                <<"user">>         => PublicUser
+                            });
                         {error, username_taken} ->
-                            reply_json(Req1, 409, #{error => #{code => <<"username_taken">>, message => <<"Username already exists">>}});
+                            reply_json(Req1, 409, #{
+                                <<"error">> => #{<<"code">> => <<"username_taken">>, <<"message">> => <<"Username already exists">>}
+                            });
                         {error, {mnesia, _}} ->
-                            reply_json(Req1, 500, #{error => #{code => <<"db_error">>, message => <<"Database error">>}});
+                            reply_json(Req1, 500, #{
+                                <<"error">> => #{<<"code">> => <<"db_error">>, <<"message">> => <<"Database error">>}
+                            });
                         {error, _} ->
-                            reply_json(Req1, 400, #{error => #{code => <<"signup_failed">>, message => <<"Unable to sign up">>}})
+                            reply_json(Req1, 400, #{
+                                <<"error">> => #{<<"code">> => <<"signup_failed">>, <<"message">> => <<"Unable to sign up">>}
+                            })
                     end;
                 Missing ->
-                    reply_json(Req1, 400, #{error => #{code => <<"missing_fields">>, missing => Missing}})
+                    reply_json(Req1, 400, #{
+                        <<"error">> => #{<<"code">> => <<"missing_fields">>, <<"missing">> => Missing}
+                    })
             end;
         {error, bad_json, Req1} ->
-            reply_json(Req1, 400, #{error => #{code => <<"bad_json">>, message => <<"Invalid JSON body">>}})
+            reply_json(Req1, 400, #{
+                <<"error">> => #{<<"code">> => <<"bad_json">>, <<"message">> => <<"Invalid JSON body">>}
+            })
     end.
 
 handle_404(Req0) ->

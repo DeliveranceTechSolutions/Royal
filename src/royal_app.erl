@@ -23,19 +23,16 @@ start(_Type, _Args) ->
     PrivDir = code:priv_dir(royal),
     Cert    = filename:join([PrivDir, "tls", "royal-server.cert.pem"]),
     Key     = filename:join([PrivDir, "tls", "royal-server.key.pem"]),
-
-    {ok, _} = cowboy:start_tls(my_https_listener,
-        [
-            {port, 8443},
-            {certfile, Cert},
-            {keyfile, Key}
-        ],
-        #{env => #{dispatch => Dispatch}} 
+    
+    {ok, _} = cowboy:start_clear(my_http_listener,
+        [{port, 8080}],
+        #{env => #{dispatch => Dispatch}}
     ),
+
     royal_mnesia:bootstrap(),
     application:start(crypto),
     application:start(bcrypt),
-	royal_sup:start_link().
+    royal_sup:start_link().
 
 stop(_State) ->
 	ok.

@@ -12,28 +12,31 @@ verify_credentials(U, P) ->
 verify_user(U, P) when
       is_binary(U), byte_size(U) > 0,
       is_binary(P), byte_size(P) > 0 ->
+    %% Do DB work inside the TX; issue token after commit
     F = fun() ->
             case mnesia:read(user, U, read) of
-                [#user{password_hash = StoredHash, salt = StoredSalt}] ->
-                    case bcrypt:hashpw(P, StoredSalt) of
-                        {ok, Hash} when Hash =:= StoredHash ->
-                            ok;                   
-                        {ok, _Other} ->
-                            bad_password;        
-                        {error, Why} ->
-                            {hash_failed, Why}     
+                [#user{password_hash = StoredHash} = Rec] ->
+                    case bcrypt:hashpw(P, StoredHash) of
+                        {ok, Hash} when Hash =:= StoredHash -> {ok, Rec};
+                        {ok, _}                             -> bad_password;
+                        {error, Why}                        -> {hash_failed, Why}
                     end;
-                [] ->
+                [] -> 
                     not_found
             end
         end,
-
     case mnesia:transaction(F) of
-        {atomic, ok}                 -> user_session:issue_token(U);
-        {atomic, bad_password}       -> {error, bad_password};
-        {atomic, not_found}          -> {error, not_found};
-        {atomic, {hash_failed, Why}} -> {error, {hash_failed, Why}};
-        {aborted, R}                 -> {error, {mnesia, R}}
+        {atomic, {ok, Rec}} ->
+            case user_session:issue_token(U) of
+              {ok, Tok}          -> {ok, Tok, user_handler:user_public(Rec)};   %% Tok is a binary
+              {error, Reason}    -> {error, {token_issue_failed, Reason}}
+            end;
+        {atomic, bad_password} ->
+            {error, bad_password};
+        {atomic, not_found} ->
+            {error, not_found};
+        {aborted, R} ->
+            {error, {mnesia, R}}
     end;
 
 verify_user(_, _) -> {error, invalid}.
