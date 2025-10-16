@@ -12,10 +12,11 @@
 
 -export([
     issue/3,                % (Sub, Secret, Opts) -> {ok, TokenBin} | {error, Reason}
-    verify/3,               % (TokenBin, Secret, Opts) -> {ok, Claims} | {error, Reason}
+    verify/4,               % (TokenBin, Secret, Opts) -> {ok, Claims} | {error, Reason}
     bearer/1,               % (TokenBin) -> <<"Bearer ...">>
     from_bearer/1,          % (HeaderValBin) -> {ok, TokenBin} | error
-    timewarp_safe_now/0                   % () -> integer seconds
+    timewarp_safe_now/0,                   % () -> integer seconds
+    validate_claims/4
 ]).
 
 -include_lib("kernel/include/logger.hrl").
@@ -29,7 +30,7 @@
 %% Public API
 %%--------------------------------------------------------------------
 
--spec issue(binary(), binary(), options()) -> {ok, binary()} | {error, term()}.
+-spec issue(binary(), binary(), options()) -> {ok, binary(), binary()} | {error, term()}.
 issue(Sub, Secret, Opts) when is_binary(Sub), is_binary(Secret), is_map(Opts) ->
     try
         Iss = maps:get(iss, Opts, <<"royal">>),
@@ -39,7 +40,14 @@ issue(Sub, Secret, Opts) when is_binary(Sub), is_binary(Secret), is_map(Opts) ->
         Kid = maps:get(kid, Opts, kid_from_secret(Secret)),
         Now = timewarp_safe_now(),
         JWK = jwk_from_secret(Secret),
+        Ref = new_random_token(64),
+        %ok = mnesia:write(#session{
+        %    user_id             = Id,
+        %    token = Ref,
+        %    expires_at = safe
+        %}),
 
+        royal_mnesia:create(session,  [id, user_id, token, expires_at]),
         Claims = #{
           <<"iss">> => Iss,
           <<"sub">> => Sub,
@@ -49,18 +57,18 @@ issue(Sub, Secret, Opts) when is_binary(Sub), is_binary(Secret), is_map(Opts) ->
           <<"exp">> => Now + TTL
         },
         JWS = #{<<"alg">> => <<"HS256">>, <<"typ">> => <<"JWT">>, <<"kid">> => Kid},
-
+        
         {_Hdr1, Signed} = jose_jwt:sign(JWK, JWS, Claims),
         {_Hdr2, Compact} = jose_jws:compact(Signed),
-        {ok, Compact}
+        {ok, Compact, Ref}
     catch
         Class:Reason:Stack ->
             ?LOG_ERROR("JWT issue error ~p:~p ~p", [Class, Reason, Stack]),
             {error, issue_failed}
     end.
 
--spec verify(binary(), binary(), options()) -> {ok, claims()} | {error, term()}.
-verify(Token, Secret, Opts) when is_binary(Token), is_binary(Secret), is_map(Opts) ->
+-spec verify(binary(), binary(), binary(), options()) -> {ok, claims()} | {error, term()}.
+verify(Token, Refresh, Secret, Opts) when is_binary(Token), is_binary(Secret), is_map(Opts) ->
     try
         Iss = maps:get(iss, Opts, <<"royal">>),
         Aud = maps:get(aud, Opts, <<"royal-api">>),
@@ -134,4 +142,16 @@ validate_claims(Claims, Iss, Aud, Skew) ->
         true ->
             ok
     end.
+
+b64url(Bin) ->
+    Bin1 = base64:encode(Bin),
+    Bin2 = binary:replace(Bin1, <<"+">>, <<"-">>, [global]),
+    Bin3 = binary:replace(Bin2, <<"/">>, <<"_">>, [global]),
+    binary:replace(Bin3, <<"=">>, <<>>, [global]).
+
+new_random_token(NumBytes) ->
+    b64url(crypto:strong_rand_bytes(NumBytes)).
+
+sha256(Bin) -> crypto:hash(sha256, Bin).
+now_s() -> erlang:system_time(second).
 

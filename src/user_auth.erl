@@ -6,6 +6,7 @@
 -record(user, {username, id, firstname, lastname, email, password_hash, salt}).
 %-record(signup, {id, firstname, lastname, email, username, password}).
 
+
 verify_credentials(U, P) ->
     verify_user(U, P).
 
@@ -28,8 +29,8 @@ verify_user(U, P) when
     case mnesia:transaction(F) of
         {atomic, {ok, Rec}} ->
             case user_session:issue_token(U) of
-              {ok, Tok}          -> {ok, Tok, user_handler:user_public(Rec)};   %% Tok is a binary
-              {error, Reason}    -> {error, {token_issue_failed, Reason}}
+              {ok, Tok, Ref}          -> {ok, Tok, Ref, user_handler:user_public(Rec)};   %% Tok is a binary
+              {error, Reason, _}    -> {error, {token_issue_failed, Reason}}
             end;
         {atomic, bad_password} ->
             {error, bad_password};

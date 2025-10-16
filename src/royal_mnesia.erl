@@ -1,6 +1,6 @@
 -module(royal_mnesia).
 
--export([ensure_tables/0, bootstrap/0]).
+-export([ensure_tables/0, bootstrap/0, create/2]).
 -include_lib("kernel/include/file.hrl").
 
 %-record(session, {id, user_id, data, expires_at}).
@@ -8,6 +8,17 @@
 %-record(kvcache, {key, val, ttl_until}).
 %
 %%% royal_mnesia.erl
+%%%
+-record(refresh, {
+    id,                 %% integer() or binary() (key)
+    user,               %% username/user id
+    token_hash,         %% sha256 of the refresh token
+    family,             %% family id to detect reuse
+    issued_at,          %% integer epoch
+    expires_at,         %% integer epoch
+    rotated_from = undefined,  %% previous id
+    revoked = false
+}).
 
 bootstrap() ->
     ensure_named_node(),
@@ -36,6 +47,7 @@ start_mnesia() ->
 ensure_tables() ->
     create(session,  [id, user_id, token, expires_at]),
     create(user,     [username, id, firstname, lastname, email, password_hash, salt]),
+    mnesia:create_table(refresh, [{type, set},{attributes, record_info(fields, refresh)}]),
     mnesia:wait_for_tables([session, user], 10000).
 
 create(Tab, Attrs) ->
