@@ -122,7 +122,7 @@ handle_signup(Req0, M) ->
             }), undefined}
     end.
 
-handle_ride_post(Req0, M) ->
+handle_barter_post(Req0, M) ->
     Required = [<<"title">>, <<"details">>, <<"author">>, <<"location">>],
     case [K || K <- Required, not maps:is_key(K, M)] of
         [] ->
@@ -210,6 +210,7 @@ init(Req0, #{action := Action}) ->
             case authenticate_api_call(M) of
                 ok              -> 
                  case {Action, Method} of
+                    {barter_post,    <<"POST">>}    ->  barter_post(Req1);
                     {refresh_tokens, <<"POST">>}    ->  not_implemented(Req1);
                     {devices,        <<"POST">>}    ->  not_implemented(Req1);
                     {delete_devices, <<"POST">>}    ->  not_implemented(Req1);

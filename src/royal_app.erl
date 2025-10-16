@@ -10,6 +10,7 @@ start(_Type, _Args) ->
                {"/v1/users/register", user_handler, #{action => register}},
                {"/v1/users/login/options", user_handler, #{action => login_with_options}},
                {"/v1/users/login/complete", user_handler, #{action => login_complete}},
+               {"/v1/barter/post", user_handler, #{action => barter_post}},
                {"/v1/users/signup", user_handler, #{action => signup}},
                {"/v1/users/refresh", user_handler, #{action => refresh_tokens}},
                {"/v1/users/devices", user_handler, #{action => devices}},
