@@ -29,16 +29,22 @@ authenticate_user(Token, Refresh) ->
          }
     ) of
         {ok, Claims} ->
+            erlang:display("ok claims"),
             case royal_jwt:validate_claims(
                Claims, 
                <<"royal">>, 
                <<"royal-api">>, 
                30
             ) of
-                ok -> ok;
-                error -> error
+                ok -> 
+                    erlang:display("ok auth"),
+                    ok;
+                error -> 
+                    erlang:display("error auth"),
+                    error
             end;
-        {error, _Term} ->
+        {error, _Term} -> 
+            erlang:display("error claims"),
             error
     end.
 

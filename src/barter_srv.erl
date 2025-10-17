@@ -1,4 +1,4 @@
--module(barter_post).
+-module(barter_srv).
 -behavior(gen_server).
 
 %% Public API
@@ -17,18 +17,23 @@
     handle_cast/2,
     handle_info/2,
     terminate/2,
-    code_change/3
+    code_change/3,
+    post/5
 ]).
 
 -include_lib("kernel/include/logger.hrl").
 -define(SERVER, ?MODULE).
 
+-record(post, {
+    title,
+    author,
+    details,
+    user_lat_lng,
+    dest_lat_lng
+}).
+
 -record(state, {
-    author = <<"">> :: binary(),
-    description = <<"">> :: binary(),
-    default_price = 0 :: non_neg_integer(),
-    user_price = 0 :: non_neg_integer(),
-    current_loc = 
+    posts = [] :: [#post{}],
     count = 0 :: non_neg_integer()
 }).
 
@@ -55,6 +60,16 @@ incr() ->
 -spec incr(pos_integer()) -> non_neg_integer().
 incr(N) when is_integer(N), N > 0 ->
     gen_server:call(?SERVER, {incr, N}).
+
+-spec post(binary(), binary(), binary(), {float(), float()}, {float(), float()}) -> ok.
+post(T, A, D, U, Dl) ->
+    gen_server:call(?SERVER, {post, #post{
+        title = T,
+        author = A,
+        details = D,
+        user_lat_lng = U,
+        dest_lat_lng = Dl
+    }}).
 
 -spec get() -> non_neg_integer().
 get() ->
@@ -88,6 +103,9 @@ handle_call({set, N}, _From, _State) when is_integer(N), N >= 0 ->
 handle_call({incr, N}, _From, State = #state{count = C}) when is_integer(N), N > 0 ->
     NewC = C + N,
     {reply, NewC, State#state{count = NewC}};
+
+handle_call({post, P}, _From, State = #state{posts = P}) ->
+    {reply, ok, State#state{posts = P}};
 
 handle_call(Unknown, _From, State) ->
     ?LOG_WARNING("Unknown call: ~p", [Unknown]),

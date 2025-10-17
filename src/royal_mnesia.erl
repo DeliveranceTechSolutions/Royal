@@ -45,7 +45,7 @@ start_mnesia() ->
     ok.
 
 ensure_tables() ->
-    create(session,  [id, user_id, token, expires_at]),
+    create(session,  [id, user_id, token, secret, expires_at]),
     create(user,     [username, id, firstname, lastname, email, password_hash, salt]),
     mnesia:create_table(refresh, [{type, set},{attributes, record_info(fields, refresh)}]),
     mnesia:wait_for_tables([session, user], 10000).

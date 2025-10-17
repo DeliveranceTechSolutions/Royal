@@ -33,6 +33,7 @@ start(_Type, _Args) ->
     royal_mnesia:bootstrap(),
     application:start(crypto),
     application:start(bcrypt),
+    barter_sup:start_link(),
     royal_sup:start_link().
 
 stop(_State) ->

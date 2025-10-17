@@ -1,0 +1,22 @@
+-module(barter_srv).
+-behaviour(gen_server).
+-behaviour(gen_statem).
+
+-export([init/1]).
+-export([
+     handle_cast/2, 
+     handle_call/3,
+     callback_mode/0
+]).
+
+handle_cast(A, B) ->
+    ok.
+
+handle_call(A, B, C) ->
+    ok.
+
+callback_mode() ->
+    ok.
+
+init(A) ->
+    ok.

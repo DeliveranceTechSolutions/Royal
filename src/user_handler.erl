@@ -36,7 +36,7 @@ user_public({user, U, Id, F, L, E, _Hash, _Salt}) ->
 %% Auth that DOES NOT read the body; it uses the map we already parsed.
 authenticate_api_call(Map) ->
     %% Adjust as needed: ideally look at Authorization header instead of body.
-    Required = [<<"access_token">>, <<"refresh_token">>, <<"user">>],
+    Required = [<<"access_token">>, <<"refresh_token">>],
     case [K || K <- Required, not maps:is_key(K, Map)] of
         [] ->
             Token   = maps:get(<<"access_token">>, Map),
@@ -86,7 +86,13 @@ handle_login(Req0, M) ->
     end.
 
 handle_signup(Req0, M) ->
-    Required = [<<"firstname">>, <<"lastname">>, <<"email">>, <<"username">>, <<"password">>],
+    Required = [
+        <<"firstname">>, 
+        <<"lastname">>, 
+        <<"email">>, 
+        <<"username">>, 
+        <<"password">>
+    ],
     case [K || K <- Required, not maps:is_key(K, M)] of
         [] ->
             F = maps:get(<<"firstname">>, M),
@@ -123,24 +129,27 @@ handle_signup(Req0, M) ->
     end.
 
 handle_barter_post(Req0, M) ->
-    Required = [<<"title">>, <<"details">>, <<"author">>, <<"location">>],
+    Required = [
+            <<"title">>,
+            <<"details">>,
+            <<"author">>,
+            <<"user_lat_lng">>,
+            <<"dest_lat_lng">>
+    ],
     case [K || K <- Required, not maps:is_key(K, M)] of
         [] ->
-            F = maps:get(<<"firstname">>, M),
-            L = maps:get(<<"lastname">>, M),
-            E = maps:get(<<"email">>, M),
-            U = maps:get(<<"username">>, M),
-            P = maps:get(<<"password">>, M),
-            case user_auth:signup(F, L, E, U, P) of
-                {ok, Token, PublicUser} ->
-                    {ok, reply_json(Req0, 201, #{
-                        <<"access_token">> => Token,
-                        <<"user">>         => PublicUser
-                    }), undefined};
-                {error, username_taken} ->
+            T    = maps:get(<<"title">>, M),
+            A    = maps:get(<<"author">>, M),
+            D    = maps:get(<<"details">>, M),
+            U    = maps:get(<<"user_lat_lng">>, M),
+            Dl   = maps:get(<<"dest_lat_lng">>, M),
+            case barter_srv:post(T, A, D, U, Dl) of
+                ok ->
+                    {ok, reply_json(Req0, 201, #{}), undefined};
+                {error, duplicate_post} ->
                     {ok, reply_json(Req0, 409, #{
-                        <<"error">> => #{<<"code">> => <<"username_taken">>,
-                                         <<"message">> => <<"Username already exists">>}
+                        <<"error">> => #{<<"code">> => <<"duplicate_post">>,
+                                         <<"message">> => <<"A duplicate post already exists">>}
                     }), undefined};
                 {error, {mnesia, _}} ->
                     {ok, reply_json(Req0, 500, #{
@@ -149,8 +158,8 @@ handle_barter_post(Req0, M) ->
                     }), undefined};
                 {error, _} ->
                     {ok, reply_json(Req0, 400, #{
-                        <<"error">> => #{<<"code">> => <<"signup_failed">>,
-                                         <<"message">> => <<"Unable to sign up">>}
+                        <<"error">> => #{<<"code">> => <<"failed_barter_post">>,
+                                         <<"message">> => <<"Failed to post">>}
                     }), undefined}
             end;
         Missing ->
@@ -210,7 +219,7 @@ init(Req0, #{action := Action}) ->
             case authenticate_api_call(M) of
                 ok              -> 
                  case {Action, Method} of
-                    {barter_post,    <<"POST">>}    ->  barter_post(Req1);
+                    {barter_post,    <<"POST">>}    ->  handle_barter_post(Req1, M);
                     {refresh_tokens, <<"POST">>}    ->  not_implemented(Req1);
                     {devices,        <<"POST">>}    ->  not_implemented(Req1);
                     {delete_devices, <<"POST">>}    ->  not_implemented(Req1);

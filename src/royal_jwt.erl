@@ -77,11 +77,13 @@ verify(Token, Refresh, Secret, Opts) when is_binary(Token), is_binary(Secret), i
 
         case jose_jwt:verify_strict(JWK, [<<"HS256">>], Token) of
             {true, #jose_jwt{fields = Claims}, _JWS} ->
+                erlang:display("jose success"),
                 case validate_claims(Claims, Iss, Aud, Skew) of
                     ok      -> {ok, Claims};
                     {error, _}=E -> E
                 end;
             _ ->
+                erlang:display("jose failed"),
                 {error, bad_signature}
         end
     catch
@@ -121,6 +123,7 @@ kid_from_secret(Secret) ->
 -spec validate_claims(map(), binary(), binary(), non_neg_integer())
       -> ok | {error, term()}.
 validate_claims(Claims, Iss, Aud, Skew) ->
+    erlang:display("validate claims"),
     Now = timewarp_safe_now(),
     Exp = maps:get(<<"exp">>, Claims, 0),
     Nbf = maps:get(<<"nbf">>, Claims, 0),
