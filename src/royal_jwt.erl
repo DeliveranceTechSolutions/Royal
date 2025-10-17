@@ -11,8 +11,8 @@
 -module(royal_jwt).
 
 -export([
-    issue/3,                % (Sub, Secret, Opts) -> {ok, TokenBin} | {error, Reason}
-    verify/4,               % (TokenBin, Secret, Opts) -> {ok, Claims} | {error, Reason}
+    issue/2,                % (Sub, Secret, Opts) -> {ok, TokenBin} | {error, Reason},
+    verify/3,               % (TokenBin, Secret, Opts) -> {ok, Claims} | {error, Reason}
     bearer/1,               % (TokenBin) -> <<"Bearer ...">>
     from_bearer/1,          % (HeaderValBin) -> {ok, TokenBin} | error
     timewarp_safe_now/0,                   % () -> integer seconds
@@ -30,8 +30,8 @@
 %% Public API
 %%--------------------------------------------------------------------
 
--spec issue(binary(), binary(), options()) -> {ok, binary(), binary()} | {error, term()}.
-issue(Sub, Secret, Opts) when is_binary(Sub), is_binary(Secret), is_map(Opts) ->
+-spec issue(binary(), options()) -> {ok, binary(), binary()} | {error, term()}.
+issue(Secret, Opts) when is_binary(Secret), is_map(Opts) ->
     try
         Iss = maps:get(iss, Opts, <<"royal">>),
         Aud = maps:get(aud, Opts, <<"royal-api">>),
@@ -50,7 +50,7 @@ issue(Sub, Secret, Opts) when is_binary(Sub), is_binary(Secret), is_map(Opts) ->
         royal_mnesia:create(session,  [id, user_id, token, expires_at]),
         Claims = #{
           <<"iss">> => Iss,
-          <<"sub">> => Sub,
+          <<"sub">> => 1,
           <<"aud">> => Aud,
           <<"iat">> => Now,
           <<"nbf">> => Now - NbfSkew,
@@ -67,8 +67,8 @@ issue(Sub, Secret, Opts) when is_binary(Sub), is_binary(Secret), is_map(Opts) ->
             {error, issue_failed}
     end.
 
--spec verify(binary(), binary(), binary(), options()) -> {ok, claims()} | {error, term()}.
-verify(Token, Refresh, Secret, Opts) when is_binary(Token), is_binary(Secret), is_map(Opts) ->
+-spec verify(binary(), binary(), options()) -> {ok, claims()} | {error, term()}.
+verify(Token, Secret, Opts) when is_binary(Token), is_binary(Secret), is_map(Opts) ->
     try
         Iss = maps:get(iss, Opts, <<"royal">>),
         Aud = maps:get(aud, Opts, <<"royal-api">>),

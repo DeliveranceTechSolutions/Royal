@@ -28,7 +28,7 @@ verify_user(U, P) when
         end,
     case mnesia:transaction(F) of
         {atomic, {ok, Rec}} ->
-            case user_session:issue_token(U) of
+            case user_session:issue_tokens(U) of
               {ok, Tok, Ref}          -> {ok, Tok, Ref, user_handler:user_public(Rec)};   %% Tok is a binary
               {error, Reason, _}    -> {error, {token_issue_failed, Reason}}
             end;

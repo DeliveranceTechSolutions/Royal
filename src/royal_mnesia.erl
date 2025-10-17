@@ -1,7 +1,7 @@
 -module(royal_mnesia).
 
 -export([ensure_tables/0, bootstrap/0, create/2]).
--include_lib("kernel/include/file.hrl").
+% -include_lib("kernel/include/file.hrl").
 
 %-record(session, {id, user_id, data, expires_at}).
 %-record(flag,    {key, value}).
@@ -45,7 +45,7 @@ start_mnesia() ->
     ok.
 
 ensure_tables() ->
-    %create(session,  [id, user_id, token, secret, expires_at]),
+    create(session,  [id, user_id, refresh_token, expires_at]),
     create(posts,  [author, title, details, user_lat_lng, dest_lat_lng, id]),
     create(user,     [username, id, firstname, lastname, email, password_hash, salt]),
     mnesia:create_table(refresh, [{type, set},{attributes, record_info(fields, refresh)}]),

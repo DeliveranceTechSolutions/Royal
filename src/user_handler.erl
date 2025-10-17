@@ -50,8 +50,12 @@ authenticate_api_call(Map) ->
         [] ->
             Token   = maps:get(<<"access_token">>, Map),
             Refresh = maps:get(<<"refresh_token">>, Map),
-            case user_session:authenticate_user(Token, Refresh) of
-                ok    -> ok;
+            case user_session:refresh_tokens(Refresh) of
+                ok ->
+                case user_session:authenticate_access(Token) of
+                    ok    -> ok;
+                    error -> error
+                end;
                 error -> error
             end;
         _Missing ->
@@ -59,6 +63,19 @@ authenticate_api_call(Map) ->
     end.
 
 %% ===== action handlers (take already-parsed Map) =====
+
+handle_refresh_tokens(Req, M) ->
+    Required = [<<"refresh_token">>],
+    case [K || K <- Required, not maps:is_key(K, M)] of
+        [] ->
+            Refresh = maps:get(<<"refresh_token">>, M),
+            case user_session:refresh_tokens(Refresh) of
+              {ok, Access2, Refresh2} -> reply_json(Req, 200, #{access => Access2, refresh => Refresh2});
+              {error, Reason}         -> reply_json(Req, 401, #{error => Reason})
+            end;
+        _Missing ->
+            missing_fields
+    end.
 
 handle_login(Req0, M) ->
     case {maps:find(<<"username">>, M), maps:find(<<"password">>, M)} of
@@ -251,7 +268,7 @@ init(Req0, #{action := Action}) ->
                  case {Action, Method} of
                     {barter_post,    <<"POST">>}    ->  handle_barter_post(Req1, M);
                     {get_all_barter_posts, <<"POST">>}    ->  handle_get_all_barter_posts(Req1);
-                    {refresh_tokens, <<"POST">>}    ->  not_implemented(Req1);
+                    {refresh_tokens, <<"POST">>}    ->  handle_refresh_tokens(Req1, M);
                     {devices,        <<"POST">>}    ->  not_implemented(Req1);
                     {delete_devices, <<"POST">>}    ->  not_implemented(Req1);
                     {suspend,        <<"POST">>}    ->  not_implemented(Req1);
