@@ -51,12 +51,19 @@ authenticate_api_call(Map) ->
             Token   = maps:get(<<"access_token">>, Map),
             Refresh = maps:get(<<"refresh_token">>, Map),
             case user_session:refresh_tokens(Refresh) of
+                {ok, _Access2, _Refresh2} ->
+                    case user_session:authenticate_access(Token) of
+                        ok    -> ok;
+                        {error, _Reason} -> error;
+                        error -> error
+                    end;
+                {error, _Reason} -> error;
                 ok ->
-                case user_session:authenticate_access(Token) of
-                    ok    -> ok;
-                    error -> error
-                end;
-                error -> error
+                    case user_session:authenticate_access(Token) of
+                        ok    -> ok;
+                        {error, _Reason} -> error;
+                        error -> error
+                    end
             end;
         _Missing ->
             missing_fields
@@ -70,11 +77,16 @@ handle_refresh_tokens(Req, M) ->
         [] ->
             Refresh = maps:get(<<"refresh_token">>, M),
             case user_session:refresh_tokens(Refresh) of
-              {ok, Access2, Refresh2} -> reply_json(Req, 200, #{access => Access2, refresh => Refresh2});
-              {error, Reason}         -> reply_json(Req, 401, #{error => Reason})
+              {ok, Access2, Refresh2} -> 
+                Req1 = reply_json(Req, 200, #{access_token => Access2, refresh_token => Refresh2}),
+                {ok, Req1, undefined};
+              {error, Reason}         -> 
+                Req1 = reply_json(Req, 401, #{error => Reason}),
+                {ok, Req1, undefined}
             end;
         _Missing ->
-            missing_fields
+            Req1 = reply_json(Req, 400, #{error => <<"missing_fields">>}),
+            {ok, Req1, undefined}
     end.
 
 handle_login(Req0, M) ->
@@ -89,20 +101,23 @@ handle_login(Req0, M) ->
                     }),
                     {ok, Req1, undefined};
                 {error, not_found} ->
-                    {ok, reply_json(Req0, 401, #{
+                    Req1 = {ok, reply_json(Req0, 401, #{
                         <<"error">> => #{<<"code">> => <<"invalid_credentials">>,
                                          <<"message">> => <<"Invalid login">>}
-                    }), undefined};
+                    }), undefined},
+                    {ok, Req1, undefined};
                 {error, bad_password} ->
-                    {ok, reply_json(Req0, 401, #{
+                    Req1 = {ok, reply_json(Req0, 401, #{
                         <<"error">> => #{<<"code">> => <<"invalid_credentials">>,
                                          <<"message">> => <<"Invalid login">>}
-                    }), undefined};
+                    }), undefined},
+                    {ok, Req1, undefined};
                 {error, _} ->
-                    {ok, reply_json(Req0, 500, #{
+                    Req1 = {ok, reply_json(Req0, 500, #{
                         <<"error">> => #{<<"code">> => <<"auth_error">>,
                                          <<"message">> => <<"Authentication error">>}
-                    }), undefined}
+                    }), undefined},
+                    {ok, Req1, undefined}
             end;
         _ ->
             {ok, reply_json(Req0, 400, #{
@@ -241,6 +256,7 @@ init(Req0, #{action := Action}) ->
         case Action of
             login_with_options -> false;
             signup             -> false;
+            refresh_tokens     -> false;
             _                  -> true
         end,
 
@@ -260,6 +276,7 @@ init(Req0, #{action := Action}) ->
         %% Public routes (no auth)
         {login_with_options, <<"POST">>, {ok, M}, false} -> handle_login(Req1, M);
         {signup,              <<"POST">>, {ok, M}, false} -> handle_signup(Req1, M);
+        {refresh_tokens,      <<"POST">>, {ok, M}, false} -> handle_refresh_tokens(Req1, M);
 
         %% Protected routes (auth first)
         {_Any, <<"POST">>, {ok, M}, true} ->

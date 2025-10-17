@@ -1,6 +1,5 @@
 %% user_session.erl
 -module(user_session).
--compile(export_all).
 
 -include_lib("kernel/include/logger.hrl").
 
@@ -46,8 +45,8 @@ get_jwt_secret() ->
   end.
 
 fallback_dev_secret() ->
-  %% Per-boot random; DEV only (tokens invalidated on restart)
-  crypto:strong_rand_bytes(32).
+  %% Fixed secret for development (tokens persist across restarts)
+  <<"dev-secret-key-32-bytes-long-for-jwt">>.
 
 now_s() -> erlang:system_time(second).
 
@@ -78,11 +77,11 @@ new_uuid16() ->
 
 %% ========= Public: Issue on login =========
 -spec issue_tokens(binary(), binary()) -> {ok, binary(), binary()} | {error, term()}.
-issue_tokens(ClientId) ->
+issue_tokens(UserId, ClientId) ->
   ensure_mnesia(),
   Secret = get_jwt_secret(),
   %% Short-lived access (e.g., 15 minutes)
-  {ok, AccessJwt} =
+  {ok, AccessJwt, _} =
     royal_jwt:issue(Secret, #{aud => <<"royal-api">>, ttl => 900}),
   %% Long-lived refresh (e.g., 30 days)
   RB    = new_refresh_bytes(),
@@ -94,6 +93,14 @@ issue_tokens(ClientId) ->
     mnesia:write(#refresh{
       hash = Hash, jti = Jti, user_id = UserId, client_id = ClientId,
       issued_at = Now, exp_at = Exp
+    }),
+    %% Also create a session record for refresh token lookup
+    SessionId = erlang:unique_integer([monotonic, positive]),
+    mnesia:write(#session{
+      id = SessionId,
+      user_id = UserId,
+      refresh_token = Hash,
+      expires_at = Exp
     })
   end),
   {ok, AccessJwt, base64:encode(RB)}.
@@ -130,26 +137,33 @@ refresh_tokens(RefreshBin) ->
     ensure_mnesia(),
     Secret = get_jwt_secret(),
     Now    = now_s(),
-    case mnesia:transaction(fun() ->
-             %% index on session.refresh_token recommended (see note below)
-             case mnesia:index_read(session, RefreshBin, refresh_token) of
+    %% Decode the base64 refresh token to get raw bytes
+    try
+        RawBytes = base64:decode(RefreshBin),
+        Hash = sha256(RawBytes),
+        case mnesia:transaction(fun() ->
+                 %% Use match_object to find session by refresh_token hash
+                 case mnesia:match_object(#session{refresh_token = Hash, _ = '_'}) of
                [] ->
                  not_found;
                [S = #session{user_id = UserId, expires_at = Exp}] when Exp > Now ->
-                 {Access, NewRef} = 
-                 NewRef = new_refresh_string(),              %% rotate
+                 NewRef = new_refresh_bytes(),              %% rotate
+                 NewRefHash = sha256(NewRef),               %% hash the new refresh token
                  NewExp = Now + 30*24*3600,
-                 mnesia:write(S#session{refresh_token = NewRef, expires_at = NewExp}),
+                 mnesia:write(S#session{refresh_token = NewRefHash, expires_at = NewExp}),
                  {rotated, UserId, NewRef};
                [_] ->
                  expired_or_bad
              end
          end) of
         {atomic, {rotated, UserId, NewRef}} ->
-            {ok, Access2} =
-                royal_jwt:issue(UserId, Secret, #{aud => <<"royal-api">>, ttl => 900}),
-            {ok, Access2, NewRef};
+            {ok, Access2, _} =
+                royal_jwt:issue(Secret, #{aud => <<"royal-api">>, ttl => 900}),
+            {ok, Access2, base64:encode(NewRef)};
         {atomic, not_found}       -> {error, invalid_refresh};
         {atomic, expired_or_bad}  -> {error, invalid_refresh};
         {aborted, Reason}         -> {error, {mnesia, Reason}}
+    end
+    catch
+        error:badarg -> {error, invalid_refresh}
     end.

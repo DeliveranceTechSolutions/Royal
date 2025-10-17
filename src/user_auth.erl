@@ -28,7 +28,7 @@ verify_user(U, P) when
         end,
     case mnesia:transaction(F) of
         {atomic, {ok, Rec}} ->
-            case user_session:issue_tokens(U) of
+            case user_session:issue_tokens(U, <<"web">>) of
               {ok, Tok, Ref}          -> {ok, Tok, Ref, user_handler:user_public(Rec)};   %% Tok is a binary
               {error, Reason, _}    -> {error, {token_issue_failed, Reason}}
             end;
@@ -64,14 +64,15 @@ signup(F, L, E, U, P) when
                     password_hash  = Hash,
                     salt           = Salt
                 }),
-                Token = user_session:issue_token(U),
-                {ok, Token};                      %% <— RETURN TOKEN
+                {ok, Token, _Refresh} = user_session:issue_tokens(U, <<"web">>),
+                UserRec = #user{username=U, id=Id, firstname=F, lastname=L, email=E, password_hash=Hash, salt=Salt},
+                {ok, Token, user_handler:user_public(UserRec)};                      %% <— RETURN TOKEN
             _ ->
                 mnesia:abort({username_taken, U})
         end
     end,
     case mnesia:transaction(Fn) of
-        {atomic, {ok, Token}}          -> Token;
+        {atomic, {ok, Token, PublicUser}} -> {ok, Token, PublicUser};
         {aborted, {username_taken, _}} -> {error, username_taken};
         {aborted, R}                   -> {error, {mnesia, R}}
     end.
