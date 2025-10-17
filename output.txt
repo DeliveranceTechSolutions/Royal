@@ -3,13 +3,19 @@
 [0m[0;32m===> Compiling royal
 [0m    ┌─ src/royal_app.erl:
     │
- 24 │      [1;31mCert[0m    = filename:join([PrivDir, "tls", "royal-server.cert.pem"]),[0m
+ 26 │      [1;31mCert[0m    = filename:join([PrivDir, "tls", "royal-server.cert.pem"]),[0m
     │      [1;31m╰──[0m[0m Warning: variable 'Cert' is unused
 
     ┌─ src/royal_app.erl:
     │
- 25 │      [1;31mKey[0m     = filename:join([PrivDir, "tls", "royal-server.key.pem"]),[0m
+ 27 │      [1;31mKey[0m     = filename:join([PrivDir, "tls", "royal-server.key.pem"]),[0m
     │      [1;31m╰──[0m[0m Warning: variable 'Key' is unused
+
+
+     ┌─ src/user_handler.erl:
+     │
+ 228 │              [1;31m{[0mok, reply_json(Req1, 400, #{[0m
+     │              [1;31m╰──[0m[0m Warning: a term is constructed, but never used
 
 
 Erlang/OTP 26 [erts-14.2.5.11] [source] [64-bit] [smp:12:12] [ds:12:12:10] [async-threads:1] [jit:ns]
@@ -26,33 +32,36 @@ Eshell V14.2.5.11 (press Ctrl+G to abort, type help(). for help)
 [0m[0;32m===> Booted gun
 [0m[0;32m===> Booted jose
 [0m[0;32m===> Booted royal
-[0m{user_is_map,true}
-#{<<"access_token">>=>{ok,<<"eyJhbGciOiJIUzI1NiIsImtpZCI6ImRoRmY1OU5vYnc4UThQUWRmckkwX0FwWEZWRy0wV1NRTWloRW92VjZzdDAiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJyb3lhbC1hcGkiLCJleHAiOjE3NjA1MzMxNTYsImlhdCI6MTc2MDUzMjI1NiwiaXNzIjoicm95YWwiLCJuYmYiOjE3NjA1MzIyMjYsInN1YiI6ImwifQ.44c880NzdSTFZbWaS2WPpTKBeqtfIm4_jOhm1Zouc9M">>},<<"user">>=>#{<<"email">>=><<"l">>,<<"firstname">>=><<"K">>,<<"id">>=>3,<<"lastname">>=><<"l">>,<<"username">>=><<"l">>}}
-=CRASH REPORT==== 15-Oct-2025::08:44:16.073889 ===
+[0m"jose success"
+"validate claims"
+"ok claims"
+"validate claims"
+"ok auth"
+=CRASH REPORT==== 17-Oct-2025::04:01:11.240094 ===
   crasher:
     initial call: cowboy_stream_h:request_process/3
-    pid: <0.442.0>
+    pid: <0.485.0>
     registered_name: []
-    exception error: {invalid_ejson,
-                         {ok,<<"eyJhbGciOiJIUzI1NiIsImtpZCI6ImRoRmY1OU5vYnc4UThQUWRmckkwX0FwWEZWRy0wV1NRTWloRW92VjZzdDAiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJyb3lhbC1hcGkiLCJleHAiOjE3NjA1MzMxNTYsImlhdCI6MTc2MDUzMjI1NiwiaXNzIjoicm95YWwiLCJuYmYiOjE3NjA1MzIyMjYsInN1YiI6ImwifQ.44c880NzdSTFZbWaS2WPpTKBeqtfIm4_jOhm1Zouc9M">>}}
+    exception error: {invalid_string,<<168,35,155,106,22,243,77,13,188,72,101,
+                                       94,49,220,67,172>>}
       in function  jiffy:encode/2 (/home/kirk/royal/_build/default/lib/jiffy/src/jiffy.erl, line 91)
-      in call from user_handler:reply_json/3 (/home/kirk/royal/src/user_handler.erl, line 20)
-      in call from user_handler:init/2 (/home/kirk/royal/src/user_handler.erl, line 127)
+      in call from user_handler:reply_json/3 (/home/kirk/royal/src/user_handler.erl, line 33)
+      in call from user_handler:handle_get_all_barter_posts/1 (/home/kirk/royal/src/user_handler.erl, line 188)
       in call from cowboy_handler:execute/2 (/home/kirk/royal/_build/default/lib/cowboy/src/cowboy_handler.erl, line 37)
       in call from cowboy_stream_h:execute/3 (/home/kirk/royal/_build/default/lib/cowboy/src/cowboy_stream_h.erl, line 306)
       in call from cowboy_stream_h:request_process/3 (/home/kirk/royal/_build/default/lib/cowboy/src/cowboy_stream_h.erl, line 295)
-    ancestors: [<0.441.0>,<0.416.0>,<0.414.0>,<0.413.0>,ranch_sup,<0.345.0>]
+    ancestors: [<0.484.0>,<0.457.0>,<0.455.0>,<0.454.0>,ranch_sup,<0.382.0>]
     message_queue_len: 0
     messages: []
-    links: [<0.441.0>]
+    links: [<0.484.0>]
     dictionary: []
     trap_exit: false
     status: running
-    heap_size: 4185
+    heap_size: 1598
     stack_size: 28
-    reductions: 1627
+    reductions: 1619
   neighbours:
 
-=ERROR REPORT==== 15-Oct-2025::08:44:16.080160 ===
-Ranch listener my_http_listener, connection process <0.441.0>, stream 1 had its request process <0.442.0> exit with reason {invalid_ejson,{ok,<<"eyJhbGciOiJIUzI1NiIsImtpZCI6ImRoRmY1OU5vYnc4UThQUWRmckkwX0FwWEZWRy0wV1NRTWloRW92VjZzdDAiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJyb3lhbC1hcGkiLCJleHAiOjE3NjA1MzMxNTYsImlhdCI6MTc2MDUzMjI1NiwiaXNzIjoicm95YWwiLCJuYmYiOjE3NjA1MzIyMjYsInN1YiI6ImwifQ.44c880NzdSTFZbWaS2WPpTKBeqtfIm4_jOhm1Zouc9M">>}} and stacktrace [{jiffy,encode,2,[{file,"/home/kirk/royal/_build/default/lib/jiffy/src/jiffy.erl"},{line,91}]},{user_handler,reply_json,3,[{file,"/home/kirk/royal/src/user_handler.erl"},{line,20}]},{user_handler,init,2,[{file,"/home/kirk/royal/src/user_handler.erl"},{line,127}]},{cowboy_handler,execute,2,[{file,"/home/kirk/royal/_build/default/lib/cowboy/src/cowboy_handler.erl"},{line,37}]},{cowboy_stream_h,execute,3,[{file,"/home/kirk/royal/_build/default/lib/cowboy/src/cowboy_stream_h.erl"},{line,306}]},{cowboy_stream_h,request_process,3,[{file,"/home/kirk/royal/_build/default/lib/cowboy/src/cowboy_stream_h.erl"},{line,295}]},{proc_lib,init_p_do_apply,3,[{file,"proc_lib.erl"},{line,241}]}]
+=ERROR REPORT==== 17-Oct-2025::04:01:11.245824 ===
+Ranch listener my_http_listener, connection process <0.484.0>, stream 1 had its request process <0.485.0> exit with reason {invalid_string,<<168,35,155,106,22,243,77,13,188,72,101,94,49,220,67,172>>} and stacktrace [{jiffy,encode,2,[{file,"/home/kirk/royal/_build/default/lib/jiffy/src/jiffy.erl"},{line,91}]},{user_handler,reply_json,3,[{file,"/home/kirk/royal/src/user_handler.erl"},{line,33}]},{user_handler,handle_get_all_barter_posts,1,[{file,"/home/kirk/royal/src/user_handler.erl"},{line,188}]},{cowboy_handler,execute,2,[{file,"/home/kirk/royal/_build/default/lib/cowboy/src/cowboy_handler.erl"},{line,37}]},{cowboy_stream_h,execute,3,[{file,"/home/kirk/royal/_build/default/lib/cowboy/src/cowboy_stream_h.erl"},{line,306}]},{cowboy_stream_h,request_process,3,[{file,"/home/kirk/royal/_build/default/lib/cowboy/src/cowboy_stream_h.erl"},{line,295}]},{proc_lib,init_p_do_apply,3,[{file,"proc_lib.erl"},{line,241}]}]
 

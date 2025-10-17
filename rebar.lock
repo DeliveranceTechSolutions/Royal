@@ -6,7 +6,15 @@
  {<<"jiffy">>,{pkg,<<"jiffy">>,<<"1.1.2">>},0},
  {<<"jose">>,{pkg,<<"jose">>,<<"1.11.5">>},0},
  {<<"poolboy">>,{pkg,<<"poolboy">>,<<"1.5.2">>},1},
- {<<"ranch">>,{pkg,<<"ranch">>,<<"2.1.0">>},0}]}.
+ {<<"quickrand">>,
+  {git,"https://github.com/okeuday/quickrand.git",
+       {ref,"65332de501998764f437c3ffe05d744f582d7622"}},
+  1},
+ {<<"ranch">>,{pkg,<<"ranch">>,<<"2.1.0">>},0},
+ {<<"uuid">>,
+  {git,"https://github.com/okeuday/uuid.git",
+       {ref,"e91f1077b098ae287e873795ac353f6162dfe933"}},
+  0}]}.
 [
 {pkg_hash,[
  {<<"bcrypt">>, <<"99904DD4A0DF4E8454293E630F2C895A599A616304838468540402FECECD11ED">>},

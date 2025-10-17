@@ -5,6 +5,15 @@
 
 -define(JSON_CT, #{<<"content-type">> => <<"application/json">>}).
 
+-record(posts, {
+    id,
+    title,
+    author,
+    details,
+    user_lat_lng,
+    dest_lat_lng
+}).
+
 %% ===== helpers =====
 
 -spec read_json(cowboy_req:req()) ->
@@ -143,7 +152,8 @@ handle_barter_post(Req0, M) ->
             D    = maps:get(<<"details">>, M),
             U    = maps:get(<<"user_lat_lng">>, M),
             Dl   = maps:get(<<"dest_lat_lng">>, M),
-            case barter_srv:post(T, A, D, U, Dl) of
+            Id   = uuid:get_v4(),
+            case barter_srv:post(T, A, D, U, Dl, Id) of
                 ok ->
                     {ok, reply_json(Req0, 201, #{}), undefined};
                 {error, duplicate_post} ->
@@ -167,6 +177,26 @@ handle_barter_post(Req0, M) ->
                 <<"error">> => #{<<"code">> => <<"missing_fields">>, <<"missing">> => Missing}
             }), undefined}
     end.
+
+handle_get_all_barter_posts(Req0) ->
+    case barter_srv:get_all_posts() of
+        {error, Reason} ->
+            {ok, reply_json(Req0, 500, #{error => Reason}), undefined};
+        Posts when is_list(Posts) ->
+            Json = [post_to_map(P) || P <- Posts],
+
+            {ok, reply_json(Req0, 200, #{posts => Json}), undefined}
+    end.
+
+post_to_map(#posts{id=Id,title=T,author=A,details=D,user_lat_lng=U,dest_lat_lng=V}) ->
+    #{id=>bin_to_hex(Id),title=>T,author=>A,details=>D,user_lat_lng=>U,dest_lat_lng=>V}.
+
+bin_to_hex(Bin) ->
+    << <<(hex(N div 16)), (hex(N rem 16))>> || <<N:8>> <= Bin >>.
+
+hex(N) when N < 10 -> $0 + N;
+hex(N)             -> $a + (N - 10).
+
 
 not_implemented(Req0) ->
     {ok, reply_json(Req0, 501, #{
@@ -220,6 +250,7 @@ init(Req0, #{action := Action}) ->
                 ok              -> 
                  case {Action, Method} of
                     {barter_post,    <<"POST">>}    ->  handle_barter_post(Req1, M);
+                    {get_all_barter_posts, <<"POST">>}    ->  handle_get_all_barter_posts(Req1);
                     {refresh_tokens, <<"POST">>}    ->  not_implemented(Req1);
                     {devices,        <<"POST">>}    ->  not_implemented(Req1);
                     {delete_devices, <<"POST">>}    ->  not_implemented(Req1);

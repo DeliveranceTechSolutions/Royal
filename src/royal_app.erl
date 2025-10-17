@@ -11,6 +11,7 @@ start(_Type, _Args) ->
                {"/v1/users/login/options", user_handler, #{action => login_with_options}},
                {"/v1/users/login/complete", user_handler, #{action => login_complete}},
                {"/v1/barter/post", user_handler, #{action => barter_post}},
+               {"/v1/barter/index", user_handler, #{action => get_all_barter_posts}},
                {"/v1/users/signup", user_handler, #{action => signup}},
                {"/v1/users/refresh", user_handler, #{action => refresh_tokens}},
                {"/v1/users/devices", user_handler, #{action => devices}},
@@ -33,7 +34,6 @@ start(_Type, _Args) ->
     royal_mnesia:bootstrap(),
     application:start(crypto),
     application:start(bcrypt),
-    barter_sup:start_link(),
     royal_sup:start_link().
 
 stop(_State) ->

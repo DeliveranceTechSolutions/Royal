@@ -1,5 +1,5 @@
 -module(barter_srv).
--behavior(gen_server).
+-behaviour(gen_server).
 
 %% Public API
 -export([
@@ -18,13 +18,15 @@
     handle_info/2,
     terminate/2,
     code_change/3,
-    post/5
+    post/6,
+    get_all_posts/0
 ]).
 
 -include_lib("kernel/include/logger.hrl").
 -define(SERVER, ?MODULE).
 
--record(post, {
+-record(posts, {
+    id,
     title,
     author,
     details,
@@ -33,7 +35,7 @@
 }).
 
 -record(state, {
-    posts = [] :: [#post{}],
+    posts = [] :: [#posts{}],
     count = 0 :: non_neg_integer()
 }).
 
@@ -61,15 +63,20 @@ incr() ->
 incr(N) when is_integer(N), N > 0 ->
     gen_server:call(?SERVER, {incr, N}).
 
--spec post(binary(), binary(), binary(), {float(), float()}, {float(), float()}) -> ok.
-post(T, A, D, U, Dl) ->
-    gen_server:call(?SERVER, {post, #post{
+-spec post(binary(), binary(), binary(), binary(), {float(), float()}, {float(), float()}) -> ok.
+post(T, A, D, U, Dl, Id) ->
+    gen_server:call(?SERVER, {post, #posts{
         title = T,
         author = A,
         details = D,
         user_lat_lng = U,
-        dest_lat_lng = Dl
+        dest_lat_lng = Dl,
+        id = Id
     }}).
+
+-spec get_all_posts() -> [].
+get_all_posts() ->
+    gen_server:call(?SERVER, get_all_posts).
 
 -spec get() -> non_neg_integer().
 get() ->
@@ -82,7 +89,6 @@ set(N) when is_integer(N), N >= 0 ->
 %%--------------------------------------------------------------------
 %% gen_server callbacks
 %%--------------------------------------------------------------------
-
 -spec init(list()) -> {ok, #state{}}.
 init(_Args) ->
     process_flag(trap_exit, true),
@@ -104,8 +110,27 @@ handle_call({incr, N}, _From, State = #state{count = C}) when is_integer(N), N >
     NewC = C + N,
     {reply, NewC, State#state{count = NewC}};
 
-handle_call({post, P}, _From, State = #state{posts = P}) ->
-    {reply, ok, State#state{posts = P}};
+handle_call({post, #posts{} = Post0}, _From, State = #state{posts = P}) ->
+    Post = case Post0#posts.id of
+        undefined -> Post0#posts{id = erlang:unique_integer([monotonic, positive])};
+        _         -> Post0
+    end,
+    case mnesia:transaction(fun() -> mnesia:write(Post) end) of
+        {atomic, ok} ->
+            ?LOG_INFO("Wrote post: ~p", [Post#posts.id]),
+            {reply, ok, State#state{posts = [Post | P]}};
+        {aborted, Reason} ->
+            ?LOG_ERROR("Mnesia write failed: ~p", [Reason]),
+            {reply, {error, Reason}, State}
+    end;
+
+handle_call(get_all_posts, _From, State) ->
+    Posts = mnesia:activity(transaction, fun() ->
+        lists:reverse(
+          mnesia:foldl(fun(R = #posts{}, Acc) -> [R|Acc] end, [], posts)
+        )
+    end),
+    {reply, Posts, State};
 
 handle_call(Unknown, _From, State) ->
     ?LOG_WARNING("Unknown call: ~p", [Unknown]),
