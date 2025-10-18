@@ -30,9 +30,10 @@
 %% Public API
 %%--------------------------------------------------------------------
 
--spec issue(binary(), options()) -> {ok, binary(), binary()} | {error, term()}.
-issue(Secret, Opts) when is_binary(Secret), is_map(Opts) ->
+issue(Secret, Opts) ->
+    erlang:display("ain't nobody got time fo dat"),
     try
+        erlang:display("try issue"),
         Iss = maps:get(iss, Opts, <<"royal">>),
         Aud = maps:get(aud, Opts, <<"royal-api">>),
         TTL = maps:get(ttl, Opts, 900),             % 15 minutes
@@ -47,7 +48,7 @@ issue(Secret, Opts) when is_binary(Secret), is_map(Opts) ->
         %    expires_at = safe
         %}),
 
-        royal_mnesia:create(session,  [id, user_id, token, expires_at]),
+        %% royal_mnesia:create(session,  [id, user_id, token, expires_at]),
         Claims = #{
           <<"iss">> => Iss,
           <<"sub">> => 1,
@@ -58,6 +59,7 @@ issue(Secret, Opts) when is_binary(Secret), is_map(Opts) ->
         },
         JWS = #{<<"alg">> => <<"HS256">>, <<"typ">> => <<"JWT">>, <<"kid">> => Kid},
         
+        erlang:display("try signing"),
         {_Hdr1, Signed} = jose_jwt:sign(JWK, JWS, Claims),
         {_Hdr2, Compact} = jose_jws:compact(Signed),
         {ok, Compact, Ref}
@@ -67,8 +69,7 @@ issue(Secret, Opts) when is_binary(Secret), is_map(Opts) ->
             {error, issue_failed}
     end.
 
--spec verify(binary(), binary(), options()) -> {ok, claims()} | {error, term()}.
-verify(Token, Secret, Opts) when is_binary(Token), is_binary(Secret), is_map(Opts) ->
+verify(Token, Secret, Opts) ->
     try
         Iss = maps:get(iss, Opts, <<"royal">>),
         Aud = maps:get(aud, Opts, <<"royal-api">>),

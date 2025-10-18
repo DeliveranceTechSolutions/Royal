@@ -48,31 +48,39 @@ signup(F, L, E, U, P) when
       is_binary(E), byte_size(E) > 0,
       is_binary(U), byte_size(U) > 0,
       is_binary(P), byte_size(P) > 0 ->
+    erlang:display("signup"),
     Fn = fun() ->
         Workfactor = 10,
         {ok, Salt} = bcrypt:gen_salt(Workfactor),
         {ok, Hash} = bcrypt:hashpw(P, Salt),
-        case mnesia:read(user, U, write) of
+        erlang:display("signup Fn"),
+        case mnesia:read(user, U, read) of
             [] ->
                 Id = erlang:unique_integer([monotonic, positive]),
-                ok = mnesia:write(#user{
-                    username       = U,
-                    id             = Id,
-                    firstname      = F,
-                    lastname       = L,
-                    email          = E,
-                    password_hash  = Hash,
-                    salt           = Salt
-                }),
-                {ok, Token, _Refresh} = user_session:issue_tokens(U, <<"web">>),
-                UserRec = #user{username=U, id=Id, firstname=F, lastname=L, email=E, password_hash=Hash, salt=Salt},
-                {ok, Token, user_handler:user_public(UserRec)};                      %% <— RETURN TOKEN
+                UserRec = #user{
+                    username      = U,
+                    id            = Id,
+                    firstname     = F,
+                    lastname      = L,
+                    email         = E,
+                    password_hash = Hash,
+                    salt          = Salt
+                },
+
+                ok = mnesia:write(user, UserRec, write),
+
+                %% IMPORTANT: this must NOT open a mnesia:transaction/1 internally.
+                %% It should only build tokens and a #session{} record.
+                {ok, Access, Refresh} = user_session:issue_tokens(U, <<"web">>),
+                %% Persist session within the SAME outer transaction
+                {ok, Access, Refresh, user_handler:user_public(UserRec)};
+
             _ ->
                 mnesia:abort({username_taken, U})
         end
     end,
     case mnesia:transaction(Fn) of
-        {atomic, {ok, Token, PublicUser}} -> {ok, Token, PublicUser};
+        {atomic, {ok, Token, Refresh, PublicUser}} -> {ok, Token, Refresh, PublicUser};
         {aborted, {username_taken, _}} -> {error, username_taken};
         {aborted, R}                   -> {error, {mnesia, R}}
     end.

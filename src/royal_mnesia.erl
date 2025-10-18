@@ -9,15 +9,16 @@
 %
 %%% royal_mnesia.erl
 %%%
+
 -record(refresh, {
-    id,                 %% integer() or binary() (key)
-    user,               %% username/user id
-    token_hash,         %% sha256 of the refresh token
-    family,             %% family id to detect reuse
-    issued_at,          %% integer epoch
-    expires_at,         %% integer epoch
-    rotated_from = undefined,  %% previous id
-    revoked = false
+  hash,             %% sha256(refresh_bytes)  -- PRIMARY KEY
+  jti,              %% uuid (binary() or text)
+  user_id,          %% binary()
+  client_id,        %% binary()
+  issued_at,        %% integer() seconds
+  exp_at,           %% integer() seconds
+  revoked_at = undefined, %% integer() | undefined
+  parent_hash = undefined %% for reuse/replay tracking
 }).
 
 bootstrap() ->
@@ -45,6 +46,7 @@ start_mnesia() ->
     ok.
 
 ensure_tables() ->
+    create(refresh,  [hash, jti, user_id, client_id, issues_at, exp_at, revoked_at, parent_hash]),
     create(session,  [id, user_id, refresh_token, expires_at]),
     create(posts,  [author, title, details, user_lat_lng, dest_lat_lng, id]),
     create(user,     [username, id, firstname, lastname, email, password_hash, salt]),

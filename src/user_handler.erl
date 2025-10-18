@@ -141,10 +141,12 @@ handle_signup(Req0, M) ->
             E = maps:get(<<"email">>, M),
             U = maps:get(<<"username">>, M),
             P = maps:get(<<"password">>, M),
+            erlang:display("handle_signup"),
             case user_auth:signup(F, L, E, U, P) of
-                {ok, Token, PublicUser} ->
+                {ok, Token, Refresh, PublicUser} ->
                     {ok, reply_json(Req0, 201, #{
                         <<"access_token">> => Token,
+                        <<"refresh_token">> => Refresh,
                         <<"user">>         => PublicUser
                     }), undefined};
                 {error, username_taken} ->
