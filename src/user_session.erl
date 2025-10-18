@@ -41,7 +41,10 @@
 %% Returns {ok, SecretBin}. Uses ROYAL_JWT_SECRET as-is if present,
 %% otherwise tries ROYAL_JWT_SECRET_B64, else falls back to a dev secret.
 get_jwt_secret() ->
-    os:getenv("ROYAL_JWT_SECRET").
+    case os:getenv("ROYAL_JWT_SECRET") of
+        false -> fallback_dev_secret();
+        Secret -> binary:trim(unicode:characters_to_binary(Secret), both, <<"\s\r\n\t">>)
+    end.
 
 fallback_dev_secret() ->
     %% Fixed secret for development (tokens persist across restarts)
@@ -165,12 +168,9 @@ issue_tokens(UserId, ClientId) ->
 authenticate_access(AccessJwt) ->
     Secret = get_jwt_secret(),
     case royal_jwt:verify(AccessJwt, Secret, #{aud => <<"royal-api">>}) of
-        {ok, Claims} ->
-            case royal_jwt:validate_claims(Claims, <<"royal">>, <<"royal-api">>, 30) of
-                ok    -> ok;
-                Error -> {error, Error}
-            end;
-        Error -> {error, Error}
+        {ok, _Claims} -> ok;
+        {error, Reason} -> {error, Reason};
+        _ -> {error, invalid_access}
     end.
 
 %% ========= Public: Refresh w/ rotation =========

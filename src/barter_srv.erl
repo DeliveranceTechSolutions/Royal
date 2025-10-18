@@ -65,6 +65,7 @@ incr(N) when is_integer(N), N > 0 ->
 
 -spec post(binary(), binary(), binary(), binary(), {float(), float()}, {float(), float()}) -> ok.
 post(T, A, D, U, Dl, Id) ->
+    erlang:display("barter post"),
     gen_server:call(?SERVER, {post, #posts{
         title = T,
         author = A,
@@ -111,6 +112,7 @@ handle_call({incr, N}, _From, State = #state{count = C}) when is_integer(N), N >
     {reply, NewC, State#state{count = NewC}};
 
 handle_call({post, #posts{} = Post0}, _From, State = #state{posts = P}) ->
+    erlang:display("barter post handle_call"),
     Post = case Post0#posts.id of
         undefined -> Post0#posts{id = erlang:unique_integer([monotonic, positive])};
         _         -> Post0

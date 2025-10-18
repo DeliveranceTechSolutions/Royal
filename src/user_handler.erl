@@ -45,26 +45,20 @@ user_public({user, U, Id, F, L, E, _Hash, _Salt}) ->
 %% Auth that DOES NOT read the body; it uses the map we already parsed.
 authenticate_api_call(Map) ->
     %% Adjust as needed: ideally look at Authorization header instead of body.
+    erlang:display("authenticate_api_call"),
     Required = [<<"access_token">>, <<"refresh_token">>],
     case [K || K <- Required, not maps:is_key(K, Map)] of
         [] ->
             Token   = maps:get(<<"access_token">>, Map),
-            Refresh = maps:get(<<"refresh_token">>, Map),
-            case user_session:refresh_tokens(Refresh) of
-                {ok, _Access2, _Refresh2} ->
-                    case user_session:authenticate_access(Token) of
-                        ok    -> ok;
-                        {error, _Reason} -> error;
-                        error -> error
-                    end;
-                {error, _Reason} -> error;
-                ok ->
-                    case user_session:authenticate_access(Token) of
-                        ok    -> ok;
-                        {error, _Reason} -> error;
-                        error -> error
-                    end
+            %Refresh = maps:get(<<"refresh_token">>, Map),
+            case user_session:authenticate_access(Token) of
+                ok    -> ok;
+                {error, _Reason} -> error
             end;
+            %case user_session:refresh_tokens(Refresh) of
+            %    {ok, _Access2, _Refresh2} ->
+            %    {error, _Reason} -> error
+            %end;
         _Missing ->
             missing_fields
     end.
@@ -287,7 +281,6 @@ init(Req0, #{action := Action}) ->
                  case {Action, Method} of
                     {barter_post,    <<"POST">>}    ->  handle_barter_post(Req1, M);
                     {get_all_barter_posts, <<"POST">>}    ->  handle_get_all_barter_posts(Req1);
-                    {refresh_tokens, <<"POST">>}    ->  handle_refresh_tokens(Req1, M);
                     {devices,        <<"POST">>}    ->  not_implemented(Req1);
                     {delete_devices, <<"POST">>}    ->  not_implemented(Req1);
                     {suspend,        <<"POST">>}    ->  not_implemented(Req1);
