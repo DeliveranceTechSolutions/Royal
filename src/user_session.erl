@@ -43,7 +43,7 @@
 get_jwt_secret() ->
     case os:getenv("ROYAL_JWT_SECRET") of
         false -> fallback_dev_secret();
-        Secret -> binary:trim(unicode:characters_to_binary(Secret), both, <<"\s\r\n\t">>)
+        Secret -> string:trim(Secret)
     end.
 
 fallback_dev_secret() ->
