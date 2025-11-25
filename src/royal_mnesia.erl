@@ -21,6 +21,20 @@
   parent_hash = undefined %% for reuse/replay tracking
 }).
 
+-record(auction, {
+    id,
+    title,
+    author,
+    details,
+    user_lat_lng = {0.0, 0.0} :: {float(), float()},
+    dest_lat_lng = {0.0, 0.0} :: {float(), float()},
+    start = 0.0 :: float(),
+    reserve = 0.0 :: float(),
+    current = 0.0 :: float(),
+    bids = [] :: [{binary(), float()}],
+    lowest = 0.0 :: float()
+}).
+
 bootstrap() ->
     ensure_named_node(),
     ok = ensure_schema(),
@@ -51,7 +65,8 @@ ensure_tables() ->
     create(posts,  [author, title, details, user_lat_lng, dest_lat_lng, id]),
     create(user,     [username, id, firstname, lastname, email, password_hash, salt]),
     mnesia:create_table(refresh, [{type, set},{attributes, record_info(fields, refresh)}]),
-    mnesia:wait_for_tables([session, user], 10000).
+    mnesia:create_table(auction, [{type, set},{attributes, record_info(fields, auction)}]),
+    mnesia:wait_for_tables([session, user, auction], 10000).
 
 create(Tab, Attrs) ->
     case mnesia:create_table(Tab, [

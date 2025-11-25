@@ -1,5 +1,6 @@
 -module(user_handler).
 -behaviour(cowboy_handler).
+-behaviour(dynamic_supervisor).
 
 -export([init/2, user_public/1]).
 
@@ -165,23 +166,28 @@ handle_signup(Req0, M) ->
             }), undefined}
     end.
 
-handle_barter_post(Req0, M) ->
+handle_auction_post(Req0, M) ->
+    {ok, Pid} = dynamic_supervisor:start_child(auction_sup, {auction_server, start_link, [AuctionId, InitState]}),
+    ok = auction_reg:register(AuctionId, Pid),
     Required = [
             <<"title">>,
             <<"details">>,
             <<"author">>,
             <<"user_lat_lng">>,
-            <<"dest_lat_lng">>
+            <<"dest_lat_lng">>,
+            <<"reserve">>
     ],
     case [K || K <- Required, not maps:is_key(K, M)] of
         [] ->
-            T    = maps:get(<<"title">>, M),
-            A    = maps:get(<<"author">>, M),
-            D    = maps:get(<<"details">>, M),
-            U    = maps:get(<<"user_lat_lng">>, M),
-            Dl   = maps:get(<<"dest_lat_lng">>, M),
-            Id   = uuid:get_v4(),
-            case barter_srv:post(T, A, D, U, Dl, Id) of
+            T   = maps:get(<<"title">>, M),
+            A   = maps:get(<<"author">>, M),
+            D   = maps:get(<<"details">>, M),
+            U   = maps:get(<<"user_lat_lng">>, M),
+            Dl  = maps:get(<<"dest_lat_lng">>, M),
+            Id  = uuid:get_v4(),
+            S   = erlang:system_time(),
+            R   = maps:get(<<"reserve">>, M),
+            case auction_srv:post(T, A, D, U, Dl, Id, S, R) of
                 ok ->
                     {ok, reply_json(Req0, 201, #{}), undefined};
                 {error, duplicate_post} ->
@@ -196,7 +202,7 @@ handle_barter_post(Req0, M) ->
                     }), undefined};
                 {error, _} ->
                     {ok, reply_json(Req0, 400, #{
-                        <<"error">> => #{<<"code">> => <<"failed_barter_post">>,
+                        <<"error">> => #{<<"code">> => <<"failed_auction_post">>,
                                          <<"message">> => <<"Failed to post">>}
                     }), undefined}
             end;
@@ -206,8 +212,8 @@ handle_barter_post(Req0, M) ->
             }), undefined}
     end.
 
-handle_get_all_barter_posts(Req0) ->
-    case barter_srv:get_all_posts() of
+handle_get_all_auction_posts(Req0) ->
+    case auction_srv:get_all_posts() of
         {error, Reason} ->
             {ok, reply_json(Req0, 500, #{error => Reason}), undefined};
         Posts when is_list(Posts) ->
@@ -224,6 +230,13 @@ bin_to_hex(Bin) ->
 
 hex(N) when N < 10 -> $0 + N;
 hex(N)             -> $a + (N - 10).
+
+handle_bid(Req0) ->
+    {AuctionID, Req1} = cowboy_req:qs_val(<<"id">>, Req0),
+
+    case auction_srv:bid of
+
+    end.
 
 
 not_implemented(Req0) ->
@@ -279,8 +292,9 @@ init(Req0, #{action := Action}) ->
             case authenticate_api_call(M) of
                 ok              -> 
                  case {Action, Method} of
-                    {barter_post,    <<"POST">>}    ->  handle_barter_post(Req1, M);
-                    {get_all_barter_posts, <<"POST">>}    ->  handle_get_all_barter_posts(Req1);
+                    {auction_post,    <<"POST">>}    ->  handle_auction_post(Req1, M);
+                    {get_all_auction_posts, <<"POST">>}    ->  handle_get_all_auction_posts(Req1);
+                    {bid, <<"POST">>}    ->  handle_bid(Req1);
                     {devices,        <<"POST">>}    ->  not_implemented(Req1);
                     {delete_devices, <<"POST">>}    ->  not_implemented(Req1);
                     {suspend,        <<"POST">>}    ->  not_implemented(Req1);

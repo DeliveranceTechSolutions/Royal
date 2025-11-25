@@ -1,4 +1,4 @@
--module(barter_srv).
+-module(auction_srv).
 -behaviour(gen_server).
 
 %% Public API
@@ -18,7 +18,7 @@
     handle_info/2,
     terminate/2,
     code_change/3,
-    post/6,
+    post/8,
     get_all_posts/0
 ]).
 
@@ -34,8 +34,23 @@
     dest_lat_lng
 }).
 
+-record(auction, {
+    id,
+    title,
+    author,
+    details,
+    user_lat_lng = {0.0, 0.0} :: {float(), float()},
+    dest_lat_lng = {0.0, 0.0} :: {float(), float()},
+    start = 0.0 :: float(),
+    reserve = 0.0 :: float(),
+    current = 0.0 :: float(),
+    bids = [] :: [float()],
+    lowest = 0.0 :: float()
+}).
+
 -record(state, {
-    posts = [] :: [#posts{}],
+    bids = [] :: [float()],
+    lowest = 0.0 :: float(),
     count = 0 :: non_neg_integer()
 }).
 
@@ -63,16 +78,32 @@ incr() ->
 incr(N) when is_integer(N), N > 0 ->
     gen_server:call(?SERVER, {incr, N}).
 
--spec post(binary(), binary(), binary(), binary(), {float(), float()}, {float(), float()}) -> ok.
-post(T, A, D, U, Dl, Id) ->
-    erlang:display("barter post"),
-    gen_server:call(?SERVER, {post, #posts{
+-spec post(
+    binary(), 
+    binary(), 
+    binary(), 
+        {
+         float(), 
+         float()
+        }, 
+        {
+         float(), 
+         float()
+        },
+    binary(),
+    binary()
+) -> ok.
+post(T, A, D, U, Dl, Id, S, R) ->
+    erlang:display("auction post"),
+    gen_server:call(?SERVER, {post, #auction{
         title = T,
         author = A,
         details = D,
         user_lat_lng = U,
         dest_lat_lng = Dl,
-        id = Id
+        id = Id,
+        start = S,
+        reserve = R
     }}).
 
 -spec get_all_posts() -> [].
@@ -107,20 +138,32 @@ handle_call(get, _From, State = #state{count = C}) ->
 handle_call({set, N}, _From, _State) when is_integer(N), N >= 0 ->
     {reply, ok, #state{count = N}};
 
+handle_call({set_auction, Auction}, _From, _State) when is_map(Auction) ->
+    {reply, ok, Auction};
+
+handle_call(end_auction, _From, _State) ->
+    {reply, ok, #auction{}};
+
+handle_call(reserve_met, _From, _State) ->
+    {reply, ok, #auction{}};
+
+handle_call({bid, B}, _From, State = #auction{ current = Cb }) when is_integer(Cb), Cb > 0 ->
+    NewBid = Cb - B,
+    {reply, NewBid, State#state{lowest = NewBid}};
+
 handle_call({incr, N}, _From, State = #state{count = C}) when is_integer(N), N > 0 ->
     NewC = C + N,
     {reply, NewC, State#state{count = NewC}};
 
-handle_call({post, #posts{} = Post0}, _From, State = #state{posts = P}) ->
-    erlang:display("barter post handle_call"),
-    Post = case Post0#posts.id of
-        undefined -> Post0#posts{id = erlang:unique_integer([monotonic, positive])};
-        _         -> Post0
+handle_call({post_auction, Auction0}, _From, State) ->
+    Auction = case Auction0#auction.id of
+        undefined -> Auction0#auction{id = erlang:unique_integer([monotonic, positive])};
+        _         -> Auction0
     end,
-    case mnesia:transaction(fun() -> mnesia:write(Post) end) of
+    case mnesia:transaction(fun() -> mnesia:write(Auction) end) of
         {atomic, ok} ->
-            ?LOG_INFO("Wrote post: ~p", [Post#posts.id]),
-            {reply, ok, State#state{posts = [Post | P]}};
+            ?LOG_INFO("Wrote post: ~p", [Auction#auction.id]),
+            {reply, ok, State};
         {aborted, Reason} ->
             ?LOG_ERROR("Mnesia write failed: ~p", [Reason]),
             {reply, {error, Reason}, State}

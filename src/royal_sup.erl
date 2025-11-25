@@ -11,10 +11,16 @@ init([]) ->
     Sup = #{strategy => one_for_one, intensity => 10, period => 10},
     Children = [
       #{
-        id => barter_srv,
-        start => {barter_srv, start_link, []},
+        id => auction_reg,
+        start => {auction_reg, start_link, []},
         restart => permanent, shutdown => 5000, type => worker,
-        modules => [barter_srv]
+        modules => [auction_reg]
+      },
+      #{
+        id => auction_srv,
+        start => {auction_srv, start_link, []},
+        restart => permanent, shutdown => 5000, type => worker,
+        modules => [auction_srv]
       }
     ],
     {ok, {Sup, Children}}.

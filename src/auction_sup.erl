@@ -1,4 +1,4 @@
--module(barter_sup).
+-module(auction_sup).
 -behaviour(supervisor).
 
 -export([start_link/0]).
@@ -11,12 +11,12 @@ init([]) ->
 	SupFlags = #{strategy => one_for_one, intensity => 10, period => 10},
     Children = [
         #{
-          id => barter_srv,
-          start => {barter_srv, start_link, []},
+          id => auction_srv,
+          start => {auction_srv, start_link, []},
           restart => permanent,
           shutdown => 5000,
           type => worker,
-          modules => [barter_srv]
+          modules => [auction_srv]
         }
     ],
     {ok, {SupFlags, Children}}.
