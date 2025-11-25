@@ -1,3 +1,4 @@
 -name royal@127.0.0.1
 -setcookie royal
+-mnesia dir '"./MNESIA/royal@${NODE}"'
 -heart

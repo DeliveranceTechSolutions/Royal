@@ -1,0 +1,208 @@
+-module(auction_srv).
+-behaviour(gen_server).
+
+%% Public API
+-export([
+    start_link/0,
+    stop/0,
+    reset/0,
+    incr/0, incr/1,
+    get/0, set/1
+]).
+
+%% gen_server callbacks
+-export([
+    init/1,
+    handle_call/3,
+    handle_cast/2,
+    handle_info/2,
+    terminate/2,
+    code_change/3,
+    post/8,
+    get_all_posts/0
+]).
+
+-include_lib("kernel/include/logger.hrl").
+-define(SERVER, ?MODULE).
+
+-record(posts, {
+    id,
+    title,
+    author,
+    details,
+    user_lat_lng,
+    dest_lat_lng
+}).
+
+-record(auction, {
+    id,
+    title,
+    author,
+    details,
+    user_lat_lng = {0.0, 0.0} :: {float(), float()},
+    dest_lat_lng = {0.0, 0.0} :: {float(), float()},
+    start = 0.0 :: float(),
+    reserve = 0.0 :: float(),
+    current = 0.0 :: float(),
+    bids = [] :: [float()],
+    lowest = 0.0 :: float()
+}).
+
+-record(state, {
+    bids = [] :: [float()],
+    lowest = 0.0 :: float(),
+    count = 0 :: non_neg_integer()
+}).
+
+%%--------------------------------------------------------------------
+%% Public API
+%%--------------------------------------------------------------------
+
+-spec start_link() -> {ok, pid()} | {error, term()}.
+start_link() ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+
+-spec stop() -> ok.
+stop() ->
+    gen_server:call(?SERVER, stop).
+
+-spec reset() -> ok.
+reset() ->
+    gen_server:cast(?SERVER, reset).
+
+-spec incr() -> non_neg_integer().
+incr() ->
+    gen_server:call(?SERVER, {incr, 1}).
+
+-spec incr(pos_integer()) -> non_neg_integer().
+incr(N) when is_integer(N), N > 0 ->
+    gen_server:call(?SERVER, {incr, N}).
+
+-spec post(
+    binary(), 
+    binary(), 
+    binary(), 
+        {
+         float(), 
+         float()
+        }, 
+        {
+         float(), 
+         float()
+        },
+    binary(),
+    binary()
+) -> ok.
+post(T, A, D, U, Dl, Id, S, R) ->
+    erlang:display("auction post"),
+    gen_server:call(?SERVER, {post, #auction{
+        title = T,
+        author = A,
+        details = D,
+        user_lat_lng = U,
+        dest_lat_lng = Dl,
+        id = Id,
+        start = S,
+        reserve = R
+    }}).
+
+-spec get_all_posts() -> [].
+get_all_posts() ->
+    gen_server:call(?SERVER, get_all_posts).
+
+-spec get() -> non_neg_integer().
+get() ->
+    gen_server:call(?SERVER, get).
+
+-spec set(non_neg_integer()) -> ok.
+set(N) when is_integer(N), N >= 0 ->
+    gen_server:call(?SERVER, {set, N}).
+
+%%--------------------------------------------------------------------
+%% gen_server callbacks
+%%--------------------------------------------------------------------
+-spec init(list()) -> {ok, #state{}}.
+init(_Args) ->
+    process_flag(trap_exit, true),
+    %% Load initial state here (from env/app config, DB, etc.)
+    {ok, #state{}}.
+
+-spec handle_call(term(), {pid(), term()}, #state{}) ->
+    {reply, term(), #state{}} | {noreply, #state{}} | {stop, term(), term(), #state{}}.
+handle_call(stop, _From, State) ->
+    {stop, normal, ok, State};
+
+handle_call(get, _From, State = #state{count = C}) ->
+    {reply, C, State};
+
+handle_call({set, N}, _From, _State) when is_integer(N), N >= 0 ->
+    {reply, ok, #state{count = N}};
+
+handle_call({set_auction, Auction}, _From, _State) when is_map(Auction) ->
+    {reply, ok, Auction};
+
+handle_call(end_auction, _From, _State) ->
+    {reply, ok, #auction{}};
+
+handle_call(reserve_met, _From, _State) ->
+    {reply, ok, #auction{}};
+
+handle_call({bid, B}, _From, State = #auction{ current = Cb }) when is_integer(Cb), Cb > 0 ->
+    NewBid = Cb - B,
+    {reply, NewBid, State#state{lowest = NewBid}};
+
+handle_call({incr, N}, _From, State = #state{count = C}) when is_integer(N), N > 0 ->
+    NewC = C + N,
+    {reply, NewC, State#state{count = NewC}};
+
+handle_call({post_auction, Auction0}, _From, State) ->
+    Auction = case Auction0#auction.id of
+        undefined -> Auction0#auction{id = erlang:unique_integer([monotonic, positive])};
+        _         -> Auction0
+    end,
+    case mnesia:transaction(fun() -> mnesia:write(Auction) end) of
+        {atomic, ok} ->
+            ?LOG_INFO("Wrote post: ~p", [Auction#auction.id]),
+            {reply, ok, State};
+        {aborted, Reason} ->
+            ?LOG_ERROR("Mnesia write failed: ~p", [Reason]),
+            {reply, {error, Reason}, State}
+    end;
+
+handle_call(get_all_posts, _From, State) ->
+    Posts = mnesia:activity(transaction, fun() ->
+        lists:reverse(
+          mnesia:foldl(fun(R = #posts{}, Acc) -> [R|Acc] end, [], posts)
+        )
+    end),
+    {reply, Posts, State};
+
+handle_call(Unknown, _From, State) ->
+    ?LOG_WARNING("Unknown call: ~p", [Unknown]),
+    {reply, {error, unknown_call}, State}.
+
+-spec handle_cast(term(), #state{}) ->
+    {noreply, #state{}} | {stop, term(), #state{}}.
+handle_cast(reset, _State) ->
+    {noreply, #state{count = 0}};
+handle_cast(Unknown, State) ->
+    ?LOG_WARNING("Unknown cast: ~p", [Unknown]),
+    {noreply, State}.
+
+-spec handle_info(term(), #state{}) ->
+    {noreply, #state{}} | {stop, term(), #state{}}.
+handle_info({'EXIT', _Pid, Reason}, State) ->
+    ?LOG_WARNING("Linked process died: ~p", [Reason]),
+    {noreply, State};
+handle_info(Info, State) ->
+    ?LOG_DEBUG("Info: ~p", [Info]),
+    {noreply, State}.
+
+-spec terminate(term(), #state{}) -> ok.
+terminate(Reason, _State) ->
+    ?LOG_INFO("Shutting down ~p with reason: ~p", [?MODULE, Reason]),
+    ok.
+
+-spec code_change(term(), #state{}, term()) -> {ok, #state{}}.
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.

@@ -1,0 +1,132 @@
+[0;32m===> Verifying dependencies...
+[0m[0;32m===> Analyzing applications...
+[0m[0;32m===> Compiling royal
+[0m     ┌─ src/user_session.erl:
+     │
+ 126 │  [1;31mdecode_b64[0m(Bin) when is_binary(Bin) ->[0m
+     │  [1;31m╰──[0m[0m Warning: function decode_b64/1 is unused
+
+
+    ┌─ src/royal_app.erl:
+    │
+ 26 │      [1;31mCert[0m    = filename:join([PrivDir, "tls", "royal-server.cert.pem"]),[0m
+    │      [1;31m╰──[0m[0m Warning: variable 'Cert' is unused
+
+    ┌─ src/royal_app.erl:
+    │
+ 27 │      [1;31mKey[0m     = filename:join([PrivDir, "tls", "royal-server.key.pem"]),[0m
+    │      [1;31m╰──[0m[0m Warning: variable 'Key' is unused
+
+
+     ┌─ src/user_handler.erl:
+     │
+ 267 │              [1;31m{[0mok, reply_json(Req1, 400, #{[0m
+     │              [1;31m╰──[0m[0m Warning: a term is constructed, but never used
+
+
+Erlang/OTP 26 [erts-14.2.5.11] [source] [64-bit] [smp:12:12] [ds:12:12:10] [async-threads:1] [jit:ns]
+
+Eshell V14.2.5.11 (press Ctrl+G to abort, type help(). for help)
+(royal@fedora)1> [0;32m===> Booted poolboy
+[0m[0;32m===> Booted bcrypt
+[0m[0;32m===> Booted cowlib
+[0m[0;32m===> Booted ranch
+[0m[0;32m===> Booted cowboy
+[0m[0;32m===> Booted mnesia
+[0m[0;32m===> Booted xmerl
+[0m[0;32m===> Booted jiffy
+[0m[0;32m===> Booted gun
+[0m[0;32m===> Booted jose
+[0m[0;32m===> Booted royal
+[0m"handle_signup"
+"signup"
+"signup Fn"
+"ok write"
+"ok write done"
+"issue_tokens"
+<<"dev-secret-key-32-bytes-long-for-jwt">>
+=ERROR REPORT==== 18-Oct-2025::01:18:55.674814 ===
+JWT issue error exit:{table_error,session,{aborted,nested_transaction}} [{royal_mnesia,
+                                                                          create,
+                                                                          2,
+                                                                          [{file,
+                                                                            "/home/kirk/royal/src/royal_mnesia.erl"},
+                                                                           {line,
+                                                                            64}]},
+                                                                         {royal_jwt,
+                                                                          issue,
+                                                                          2,
+                                                                          [{file,
+                                                                            "/home/kirk/royal/src/royal_jwt.erl"},
+                                                                           {line,
+                                                                            50}]},
+                                                                         {user_session,
+                                                                          issue_tokens,
+                                                                          2,
+                                                                          [{file,
+                                                                            "/home/kirk/royal/src/user_session.erl"},
+                                                                           {line,
+                                                                            87}]},
+                                                                         {user_auth,
+                                                                          '-signup/5-fun-0-',
+                                                                          5,
+                                                                          [{file,
+                                                                            "/home/kirk/royal/src/user_auth.erl"},
+                                                                           {line,
+                                                                            71}]},
+                                                                         {mnesia_tm,
+                                                                          apply_fun,
+                                                                          3,
+                                                                          [{file,
+                                                                            "mnesia_tm.erl"},
+                                                                           {line,
+                                                                            889}]},
+                                                                         {mnesia_tm,
+                                                                          execute_transaction,
+                                                                          5,
+                                                                          [{file,
+                                                                            "mnesia_tm.erl"},
+                                                                           {line,
+                                                                            865}]},
+                                                                         {user_auth,
+                                                                          signup,
+                                                                          5,
+                                                                          [{file,
+                                                                            "/home/kirk/royal/src/user_auth.erl"},
+                                                                           {line,
+                                                                            78}]},
+                                                                         {user_handler,
+                                                                          handle_signup,
+                                                                          2,
+                                                                          [{file,
+                                                                            "/home/kirk/royal/src/user_handler.erl"},
+                                                                           {line,
+                                                                            145}]},
+                                                                         {cowboy_handler,
+                                                                          execute,
+                                                                          2,
+                                                                          [{file,
+                                                                            "/home/kirk/royal/_build/default/lib/cowboy/src/cowboy_handler.erl"},
+                                                                           {line,
+                                                                            37}]},
+                                                                         {cowboy_stream_h,
+                                                                          execute,
+                                                                          3,
+                                                                          [{file,
+                                                                            "/home/kirk/royal/_build/default/lib/cowboy/src/cowboy_stream_h.erl"},
+                                                                           {line,
+                                                                            306}]},
+                                                                         {cowboy_stream_h,
+                                                                          request_process,
+                                                                          3,
+                                                                          [{file,
+                                                                            "/home/kirk/royal/_build/default/lib/cowboy/src/cowboy_stream_h.erl"},
+                                                                           {line,
+                                                                            295}]},
+                                                                         {proc_lib,
+                                                                          init_p_do_apply,
+                                                                          3,
+                                                                          [{file,
+                                                                            "proc_lib.erl"},
+                                                                           {line,
+                                                                            241}]}]
