@@ -4,7 +4,6 @@
 -include_lib("stdlib/include/qlc.hrl").
 
 -record(user, {username, id, firstname, lastname, email, password_hash, salt}).
-%-record(signup, {id, firstname, lastname, email, username, password}).
 
 
 verify_credentials(U, P) ->
@@ -69,10 +68,7 @@ signup(F, L, E, U, P) when
 
                 ok = mnesia:write(user, UserRec, write),
 
-                %% IMPORTANT: this must NOT open a mnesia:transaction/1 internally.
-                %% It should only build tokens and a #session{} record.
                 {ok, Access, Refresh} = user_session:issue_tokens(U, <<"web">>),
-                %% Persist session within the SAME outer transaction
                 {ok, Access, Refresh, user_handler:user_public(UserRec)};
 
             _ ->

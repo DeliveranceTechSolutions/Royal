@@ -1,13 +1,3 @@
-%%--------------------------------------------------------------------
-%% royal_jwt.erl — tiny JWT helper built on JOSE (HS256)
-%%--------------------------------------------------------------------
-%% deps: jose (e.g., {jose, "1.11.5"})
-%% usage:
-%%   Secret = <<"super-secret-32b-min">>.
-%%   {ok, Token} = royal_jwt:issue(<<"user-123">>, Secret,
-%%                                 #{aud => <<"royal-api">>, ttl => 900}).
-%%   royal_jwt:verify(Token, Secret, #{aud => <<"royal-api">>}).
-%%--------------------------------------------------------------------
 -module(royal_jwt).
 
 -export([
@@ -42,13 +32,7 @@ issue(Secret, Opts) ->
         Now = timewarp_safe_now(),
         JWK = jwk_from_secret(Secret),
         Ref = new_random_token(64),
-        %ok = mnesia:write(#session{
-        %    user_id             = Id,
-        %    token = Ref,
-        %    expires_at = safe
-        %}),
 
-        %% royal_mnesia:create(session,  [id, user_id, token, expires_at]),
         Claims = #{
           <<"iss">> => Iss,
           <<"sub">> => 1,

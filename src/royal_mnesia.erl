@@ -1,14 +1,5 @@
 -module(royal_mnesia).
-
 -export([ensure_tables/0, bootstrap/0, create/2]).
-% -include_lib("kernel/include/file.hrl").
-
-%-record(session, {id, user_id, data, expires_at}).
-%-record(flag,    {key, value}).
-%-record(kvcache, {key, val, ttl_until}).
-%
-%%% royal_mnesia.erl
-%%%
 
 -record(refresh, {
   hash,             %% sha256(refresh_bytes)  -- PRIMARY KEY

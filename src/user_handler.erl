@@ -15,8 +15,6 @@
     dest_lat_lng
 }).
 
-%% ===== helpers =====
-
 -spec read_json(cowboy_req:req()) ->
         {{ok, map()} | {error, bad_json} | no_body, cowboy_req:req()}.
 read_json(Req0) ->
@@ -43,23 +41,16 @@ user_public({user, U, Id, F, L, E, _Hash, _Salt}) ->
       <<"email">>     => E
     }.
 
-%% Auth that DOES NOT read the body; it uses the map we already parsed.
 authenticate_api_call(Map) ->
-    %% Adjust as needed: ideally look at Authorization header instead of body.
     erlang:display("authenticate_api_call"),
     Required = [<<"access_token">>, <<"refresh_token">>],
     case [K || K <- Required, not maps:is_key(K, Map)] of
         [] ->
             Token   = maps:get(<<"access_token">>, Map),
-            %Refresh = maps:get(<<"refresh_token">>, Map),
             case user_session:authenticate_access(Token) of
                 ok    -> ok;
                 {error, _Reason} -> error
             end;
-            %case user_session:refresh_tokens(Refresh) of
-            %    {ok, _Access2, _Refresh2} ->
-            %    {error, _Reason} -> error
-            %end;
         _Missing ->
             missing_fields
     end.
